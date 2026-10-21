@@ -4,6 +4,8 @@
 
 单文件 HTML 应用（无构建依赖、无后端、双击即用），毛玻璃界面，`Ctrl + K` 可全局跳转，配套一份 11 章的调研报告。
 
+![总览界面](docs/screenshot-overview.png)
+
 ## 在线访问
 
 **https://albertlionzz.github.io/ai-agent-quota-hub/**
@@ -77,6 +79,7 @@ node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 �
 AI-Agent免费额度调度中台.html   构建产物（单文件）
 AI-Agent免费额度调研报告.md      11 章调研报告
 .github/workflows/pages.yml     push 后自动发布到 GitHub Pages
+docs/screenshot-overview.png    README 用的界面截图
 quota-hub/
   build.py                 注入式构建
   test-*.js                6 个测试文件
