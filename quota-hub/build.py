@@ -17,6 +17,7 @@ orch = (ASSETS / "orchestrator.js").read_text(encoding="utf-8")
 access = (ASSETS / "access.js").read_text(encoding="utf-8")
 verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
 usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
+palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
 
 # 模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
@@ -30,6 +31,7 @@ for ph, payload in [
     ("/*__ORCH__*/", orch),
     ("/*__ACCESS__*/", access),
     ("/*__VERIFY__*/", verify),
+    ("/*__PALETTE__*/", palette),
 ]:
     if app.count(ph) != 1:
         raise SystemExit(f"app.js 中占位符 {ph} 命中 {app.count(ph)} 次，应为 1 次")

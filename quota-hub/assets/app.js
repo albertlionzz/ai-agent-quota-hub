@@ -765,12 +765,15 @@
   /*__ACCESS__*/
   /*__VERIFY__*/
 
+  /*__PALETTE__*/
+
   function init() {
     /* 侧栏计数 */
     $('#nav-count-reg').textContent = PLATFORMS.length;
     $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
     $('#data-date').textContent = DATA_DATE;
     renderFreshness();
+    initPalette();
 
     $$('.nav-item').forEach(b => b.addEventListener('click', () => switchView(b.dataset.v)));
 

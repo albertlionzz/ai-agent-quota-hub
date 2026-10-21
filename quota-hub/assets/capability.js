@@ -291,7 +291,7 @@ function renderCapability() {
        <span class="ev-src ${SRC_TRUST[e.src].trust}">${SRC_TRUST[e.src].label}</span>
        <span class="ev-raw">${esc(e.raw)}</span></div>`).join('');
 
-    return `<tr>
+    return `<tr data-model="${esc(m.id)}">
       <td>
         <div class="cap-name">${esc(m.name)}</div>
         <div class="cap-vendor">${esc(m.vendor)} · ${esc(m.params)} · ${esc(m.ctx)}</div>
