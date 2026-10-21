@@ -1,0 +1,63 @@
+name: Deploy to GitHub Pages
+
+# 只做一件事：把构建好的单文件 HTML 发布成可在线访问的页面。
+# 源码在 quota-hub/，产物是仓库根目录那份 HTML——发布时直接拷成 index.html，
+# 这样网址是干净的 /ai-agent-quota-hub/，不用带一长串 URL 编码的中文文件名。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个发布，新的 push 打断旧的排队（但不打断正在部署的）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # enablement: true 会在仓库尚未开启 Pages 时自动创建站点，
+      # 否则首次运行会以 "Get Pages site failed" 失败，需要人工去 Settings 点一遍。
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp "AI-Agent免费额度调度中台.html" "_site/index.html"
+          # 保留原文件名入口，方便已经拿到旧链接的人继续用
+          cp "AI-Agent免费额度调度中台.html" "_site/quota-hub.html"
+          cp "AI-Agent免费额度调研报告.md" "_site/report.md"
+          cp README.md "_site/README.md"
+          # 关掉 Jekyll 处理，避免 _ 开头的路径被吞
+          touch _site/.nojekyll
+          ls -lh _site
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

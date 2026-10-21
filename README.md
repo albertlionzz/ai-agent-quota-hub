@@ -4,6 +4,12 @@
 
 单文件 HTML 应用（无构建依赖、无后端、双击即用），配套一份 11 章的调研报告。
 
+## 在线访问
+
+**https://albertlionzz.github.io/ai-agent-quota-hub/**
+
+每次 push 到 `main`，GitHub Actions 会自动把构建产物发布到这个地址（见 `.github/workflows/pages.yml`）。想离线用，直接下载仓库里的 `AI-Agent免费额度调度中台.html` 双击打开——不联网也能跑。
+
 ## 它解决什么问题
 
 拿到一堆免费额度之后，真正会卡住的不是「哪家送得多」，而是这三件事：
@@ -61,6 +67,7 @@ node test-verify.js      # 接入核验 28 项：含「核验表 base 与端点�
 ```
 AI-Agent免费额度调度中台.html   构建产物（单文件）
 AI-Agent免费额度调研报告.md      11 章调研报告
+.github/workflows/pages.yml     push 后自动发布到 GitHub Pages
 quota-hub/
   build.py                 注入式构建
   test-*.js                6 个测试文件
