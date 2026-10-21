@@ -788,6 +788,65 @@
   }
 
   /* ============================================================
+     视图：重置日程
+     ============================================================ */
+  function renderSchedule() {
+    const s = scheduleOf(PLATFORMS, state.wallet, new Date());
+    const t = s.totals;
+    const h = s.renew.items.length ? s.renew.items[0].hoursLeft : 0;
+    const m = s.renew.items.length ? s.renew.items[0].minsLeft : 0;
+
+    $('#sch-kpis').innerHTML = `
+      <div class="kpi"><div class="k-label">今日可刷新</div>
+        <div class="k-val k-green">${fmt(t.renewCap)}<small>tok/日</small></div>
+        <div class="k-foot">${s.renew.items.length} 个每日型平台</div></div>
+      <div class="kpi"><div class="k-label">今日已用</div>
+        <div class="k-val">${fmt(t.renewUsed)}<small>tok</small></div>
+        <div class="k-foot">今日还剩 ${fmt(t.renewLeft)}</div></div>
+      <div class="kpi"><div class="k-label">一次性余量</div>
+        <div class="k-val k-amber">${t.onceCap ? fmt(t.onceLeft) : '—'}${t.onceCap ? '<small>tok</small>' : ''}</div>
+        <div class="k-foot">${t.onceCap ? `已用掉 ${fmt(t.onceUsed)}` : '清单里暂无礼包 / 试用'}</div></div>
+      <div class="kpi"><div class="k-label">距离重置</div>
+        <div class="k-val">${s.renew.items.length ? h + '<small>h</small> ' + m + '<small>m</small>' : '—'}</div>
+        <div class="k-foot">按本地时间估算</div></div>`;
+
+    $('#sch-advice').innerHTML = `<b>先做什么</b><span>${esc(scheduleAdvice(t))}</span>`;
+
+    const row = (it, mode) => {
+      let chip;
+      if (mode === 'renew') {
+        chip = it.exhausted
+          ? '<span class="chip red">今天用完</span>'
+          : `<span class="chip green">剩 ${esc(fmt(it.left))}</span>`;
+      } else if (mode === 'cycle') {
+        chip = `<span class="chip ghost">${esc(it.period)}</span>`;
+      } else {
+        chip = `<span class="chip ${it.left > 0 ? 'amber' : 'ghost'}">剩 ${esc(fmt(it.left))}</span>`;
+      }
+      const p = byId(it.id);
+      const qt = p ? QUOTA_TYPES[p.quotaType] : { short: '' };
+      return `<div class="sch-row${it.exhausted ? ' out' : ''}">
+        <div class="sch-name">
+          <b>${esc(it.name)}</b>
+          <span>${esc(qt.short)} · 额度 ${esc(fmt(it.cap))}</span>
+        </div>
+        <div class="sch-meter"><i style="width:${it.pct}%"></i></div>
+        <div class="sch-num"><span>已用 ${esc(fmt(it.used))}</span>${chip}</div>
+      </div>`;
+    };
+
+    const fill = (sel, items, mode, emptyText) => {
+      $(sel).innerHTML = items.length
+        ? items.map(it => row(it, mode)).join('')
+        : `<div class="sch-empty">${esc(emptyText)}</div>`;
+    };
+
+    fill('#sch-renew', s.renew.items, 'renew', '清单里还没有每日刷新的平台，先去「我的额度」把已开通的加进来。');
+    fill('#sch-cycle', s.cycle.items, 'cycle', '当前清单里没有每周 / 每月刷新的平台。');
+    fill('#sch-once', s.once.items, 'once', '当前清单里没有礼包或试用额度——没有会过期的东西，压力小一点。');
+  }
+
+  /* ============================================================
      路由 & 初始化
      ============================================================ */
   const VIEWS = {
@@ -795,6 +854,7 @@
     registry: { title: '平台库', sub: '按形态、区域、类型筛选', render: renderRegistry },
     router:   { title: '任务路由', sub: '按需求量算出免费方案', render: () => { renderRouterForm(); runRoute(); } },
     wallet:   { title: '我的额度', sub: '已开通清单与重置节奏', render: renderWallet },
+    schedule: { title: '重置日程', sub: '谁今天刷新、谁只减不增', render: renderSchedule },
     intel:    { title: '情报与避坑', sub: '政策变更时间线', render: renderIntel }
   };
 
@@ -828,6 +888,8 @@
   }
 
   /*__USAGE__*/
+
+  /*__SCHEDULE__*/
 
   /*__WALLETIO__*/
 

@@ -2,7 +2,7 @@
 
 把各家大模型的「免费额度」真正用起来的调度台：额度盘点、跨模型分阶段编排、总控一致性闭环、接入通道与网关配置、主流模型接入核验。
 
-单文件 HTML 应用（无构建依赖、无后端、双击即用），配套一份 11 章的调研报告。
+单文件 HTML 应用（无构建依赖、无后端、双击即用），毛玻璃界面，`Ctrl + K` 可全局跳转，配套一份 11 章的调研报告。
 
 ## 在线访问
 
@@ -22,7 +22,7 @@
 
 中台对应给出：五类额度建模 → 项目编排流水线 → 总控调度舱 → 接入通道与网关 → 23 家接入核验。
 
-## 10 个视图
+## 11 个视图
 
 | 视图 | 作用 |
 |---|---|
@@ -32,7 +32,8 @@
 | 项目编排 | 6 个模板 × 2 种执行模式，多模型分阶段跑完一个项目 |
 | 总控调度舱 | 四角色（总控 / 执行 / 审查 / 汇总）+ 状态卡 + 五类冲突检查 + 经验库 |
 | 能力画像 | 12 模型 × 9 维得分，每条挂评测来源与可信度分级 |
-| 我的额度 | 已开通清单、重置节奏、用量登记（算得出真实余量） |
+| 我的额度 | 已开通清单、用量登记（算得出真实余量）、JSON 备份导出/导入 |
+| 重置日程 | 今天哪些额度会刷新、哪些只减不增、哪些周期未公示 |
 | 接入通道 | 三类额度、五条接入路径、LiteLLM 网关配置生成 |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自检脚本导出 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
@@ -48,7 +49,7 @@ cd quota-hub
 python build.py          # 产出 ../AI-Agent免费额度调度中台.html
 ```
 
-`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → CAP → PIPE → ORCH → ACCESS → VERIFY），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
+`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → WALLETIO → SCHEDULE → CAP → PIPE → ORCH → ACCESS → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
 
 ## 测试
 
@@ -61,6 +62,9 @@ node test-orch.js        # 总控 121 项断言
 node test-access.js      # 网关配置：真实 YAML 解析 + Python 编译（32 项）
 node test-verify.js      # 接入核验 28 项：含「核验表 base 与端点表逐字一致」
 node test-usage.js       # 用量登记纯函数 40 项（解析 1.5万/200k、跨天归零、超额夹取）
+node test-palette.js     # 全局跳转 14 项：含「kimi 不能拖出 DeepSeek」假阳性回归
+node test-walletio.js    # 备份导入 22 项：坏输入全拒、脏字段清洗、合并语义
+node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 点倒计时边界
 ```
 
 `test-verify.js` 里最有用的一条断言：核验表里的 `base_url` 必须与端点表 `PIPE_BASE` 完全一致 —— 防止只改一处。
@@ -87,6 +91,9 @@ quota-hub/
     access.js              接入通道与网关配置
     verify.js              接入核验（23 家）
     usage.js               用量登记纯函数（解析 / 余量 / 跨天归零）
+    walletio.js            备份导出/导入与校验
+    schedule.js            重置日程分桶
+    palette.js             Ctrl+K 全局跳转
 ```
 
 ## 关于数据准确性

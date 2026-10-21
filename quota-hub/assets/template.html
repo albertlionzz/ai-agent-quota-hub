@@ -52,6 +52,11 @@
     <span class="nav-badge" id="nav-count-wallet">0</span>
   </button>
 
+  <button class="nav-item" data-v="schedule">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.8v2.4M10.5 1.8v2.4"/><path d="M5.4 9.6h1.2M9.4 9.6h1.2M5.4 12h1.2"/></svg>
+    重置日程
+  </button>
+
   <button class="nav-item" data-v="access">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="5.5" width="12.4" height="7" rx="1.6"/><path d="M4.5 5.5V4a3.5 3.5 0 017 0v1.5"/><path d="M8 8.6v2.4"/></svg>
     接入通道
@@ -483,6 +488,40 @@
         不采集任何 Key、也不调用官方接口。每日刷新型的「今日已用」跨天自动归零，一次性礼包的「已用」累计不清零。
         所有数据保存在浏览器本地（localStorage），换设备不会自动同步——用上面的「导出备份 / 导入备份」迁移。
         重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
+      </div>
+    </section>
+
+    <!-- ---------- 重置日程 ---------- -->
+    <section class="view" id="view-schedule">
+      <div class="kpi-grid" id="sch-kpis"></div>
+
+      <div class="sch-advice" id="sch-advice"></div>
+
+      <div class="sec-head">
+        <h2>今天会刷新</h2>
+        <span class="hint">每日型额度，本地 0 点重置，用不完不累积</span>
+      </div>
+      <div class="sch-list" id="sch-renew"></div>
+
+      <div class="sec-head">
+        <h2>周期刷新，日期未公示</h2>
+        <span class="hint">没有平台公开具体是周几或几号，这里只标周期，不替你猜日期</span>
+      </div>
+      <div class="sch-list" id="sch-cycle"></div>
+
+      <div class="sec-head">
+        <h2>只减不增</h2>
+        <span class="hint">礼包与试用，用掉一点少一点，优先于每天刷新的额度</span>
+      </div>
+      <div class="sch-list" id="sch-once"></div>
+
+      <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.7">
+        <b>这一页为什么没有「未来 7 天日历」：</b>
+        因为数据里没有可信的日期可用——全库 48 个平台<strong>没有任何一家公示了 expiresAt</strong>，
+        weekly / monthly 型也只说了周期、没说具体哪天。
+        按 0 点给每日型排一张七日表，七天会长得一模一样，属于凑版面的假精确。
+        所以这里只保留三类能落到实处的事：今天几点重置、哪些平台是周期型但日期未知、哪些额度只减不增。
+        具体到期日请到各平台控制台「资源包管理」自查，再用「我的额度」右上登记用量。
       </div>
     </section>
 

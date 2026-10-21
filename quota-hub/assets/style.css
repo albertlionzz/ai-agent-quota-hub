@@ -1622,3 +1622,69 @@ kbd,
 .wio-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .wio-actions .ghost-btn,
 .wio-actions .run-btn { width: auto; padding: 7px 14px; font-size: 11.5px; }
+
+/* ============================================================
+   重置日程
+   ============================================================ */
+.sch-advice {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 14px 0 4px; padding: 12px 15px;
+  background: rgba(47, 95, 224, .07);
+  border: 1px solid rgba(47, 95, 224, .16);
+  border-radius: var(--r);
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.65;
+}
+.sch-advice b {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 650; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--accent);
+}
+
+.sch-list { display: flex; flex-direction: column; gap: 7px; }
+
+.sch-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) minmax(80px, 1.4fr) auto;
+  align-items: center; gap: 14px;
+  padding: 11px 15px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  box-shadow: var(--glass-hi), var(--shadow);
+}
+.sch-row.out { opacity: .62; }
+
+.sch-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sch-name b { font-size: 12.5px; font-weight: 620; }
+.sch-name span { font-size: 10.5px; color: var(--ink-3); }
+
+.sch-meter {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(24, 32, 56, .08);
+}
+.sch-meter i {
+  display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), #6b8ef0);
+}
+.sch-row.out .sch-meter i { background: var(--red); }
+
+.sch-num {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--ink-3);
+  font-family: var(--mono); white-space: nowrap;
+}
+.sch-num .chip { font-family: var(--sans); }
+
+.sch-empty {
+  padding: 16px 15px;
+  font-size: 12px; color: var(--ink-3);
+  background: rgba(255, 255, 255, .34);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+}
+
+@media (max-width: 720px) {
+  .sch-row { grid-template-columns: 1fr; gap: 8px; }
+  .sch-num { justify-content: flex-start; }
+}

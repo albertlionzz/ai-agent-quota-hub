@@ -1630,6 +1630,72 @@ kbd,
 .wio-actions .ghost-btn,
 .wio-actions .run-btn { width: auto; padding: 7px 14px; font-size: 11.5px; }
 
+/* ============================================================
+   重置日程
+   ============================================================ */
+.sch-advice {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 14px 0 4px; padding: 12px 15px;
+  background: rgba(47, 95, 224, .07);
+  border: 1px solid rgba(47, 95, 224, .16);
+  border-radius: var(--r);
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.65;
+}
+.sch-advice b {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 650; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--accent);
+}
+
+.sch-list { display: flex; flex-direction: column; gap: 7px; }
+
+.sch-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) minmax(80px, 1.4fr) auto;
+  align-items: center; gap: 14px;
+  padding: 11px 15px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  box-shadow: var(--glass-hi), var(--shadow);
+}
+.sch-row.out { opacity: .62; }
+
+.sch-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sch-name b { font-size: 12.5px; font-weight: 620; }
+.sch-name span { font-size: 10.5px; color: var(--ink-3); }
+
+.sch-meter {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(24, 32, 56, .08);
+}
+.sch-meter i {
+  display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), #6b8ef0);
+}
+.sch-row.out .sch-meter i { background: var(--red); }
+
+.sch-num {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--ink-3);
+  font-family: var(--mono); white-space: nowrap;
+}
+.sch-num .chip { font-family: var(--sans); }
+
+.sch-empty {
+  padding: 16px 15px;
+  font-size: 12px; color: var(--ink-3);
+  background: rgba(255, 255, 255, .34);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+}
+
+@media (max-width: 720px) {
+  .sch-row { grid-template-columns: 1fr; gap: 8px; }
+  .sch-num { justify-content: flex-start; }
+}
+
 </style>
 </head>
 <body>
@@ -1674,6 +1740,11 @@ kbd,
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="M2 6.5h12"/><circle cx="11" cy="9.5" r=".8" fill="currentColor" stroke="none"/></svg>
     我的额度
     <span class="nav-badge" id="nav-count-wallet">0</span>
+  </button>
+
+  <button class="nav-item" data-v="schedule">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.8v2.4M10.5 1.8v2.4"/><path d="M5.4 9.6h1.2M9.4 9.6h1.2M5.4 12h1.2"/></svg>
+    重置日程
   </button>
 
   <button class="nav-item" data-v="access">
@@ -2107,6 +2178,40 @@ kbd,
         不采集任何 Key、也不调用官方接口。每日刷新型的「今日已用」跨天自动归零，一次性礼包的「已用」累计不清零。
         所有数据保存在浏览器本地（localStorage），换设备不会自动同步——用上面的「导出备份 / 导入备份」迁移。
         重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
+      </div>
+    </section>
+
+    <!-- ---------- 重置日程 ---------- -->
+    <section class="view" id="view-schedule">
+      <div class="kpi-grid" id="sch-kpis"></div>
+
+      <div class="sch-advice" id="sch-advice"></div>
+
+      <div class="sec-head">
+        <h2>今天会刷新</h2>
+        <span class="hint">每日型额度，本地 0 点重置，用不完不累积</span>
+      </div>
+      <div class="sch-list" id="sch-renew"></div>
+
+      <div class="sec-head">
+        <h2>周期刷新，日期未公示</h2>
+        <span class="hint">没有平台公开具体是周几或几号，这里只标周期，不替你猜日期</span>
+      </div>
+      <div class="sch-list" id="sch-cycle"></div>
+
+      <div class="sec-head">
+        <h2>只减不增</h2>
+        <span class="hint">礼包与试用，用掉一点少一点，优先于每天刷新的额度</span>
+      </div>
+      <div class="sch-list" id="sch-once"></div>
+
+      <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.7">
+        <b>这一页为什么没有「未来 7 天日历」：</b>
+        因为数据里没有可信的日期可用——全库 48 个平台<strong>没有任何一家公示了 expiresAt</strong>，
+        weekly / monthly 型也只说了周期、没说具体哪天。
+        按 0 点给每日型排一张七日表，七天会长得一模一样，属于凑版面的假精确。
+        所以这里只保留三类能落到实处的事：今天几点重置、哪些平台是周期型但日期未知、哪些额度只减不增。
+        具体到期日请到各平台控制台「资源包管理」自查，再用「我的额度」右上登记用量。
       </div>
     </section>
 
@@ -3696,6 +3801,65 @@ const DEFAULT_WALLET = {
   }
 
   /* ============================================================
+     视图：重置日程
+     ============================================================ */
+  function renderSchedule() {
+    const s = scheduleOf(PLATFORMS, state.wallet, new Date());
+    const t = s.totals;
+    const h = s.renew.items.length ? s.renew.items[0].hoursLeft : 0;
+    const m = s.renew.items.length ? s.renew.items[0].minsLeft : 0;
+
+    $('#sch-kpis').innerHTML = `
+      <div class="kpi"><div class="k-label">今日可刷新</div>
+        <div class="k-val k-green">${fmt(t.renewCap)}<small>tok/日</small></div>
+        <div class="k-foot">${s.renew.items.length} 个每日型平台</div></div>
+      <div class="kpi"><div class="k-label">今日已用</div>
+        <div class="k-val">${fmt(t.renewUsed)}<small>tok</small></div>
+        <div class="k-foot">今日还剩 ${fmt(t.renewLeft)}</div></div>
+      <div class="kpi"><div class="k-label">一次性余量</div>
+        <div class="k-val k-amber">${t.onceCap ? fmt(t.onceLeft) : '—'}${t.onceCap ? '<small>tok</small>' : ''}</div>
+        <div class="k-foot">${t.onceCap ? `已用掉 ${fmt(t.onceUsed)}` : '清单里暂无礼包 / 试用'}</div></div>
+      <div class="kpi"><div class="k-label">距离重置</div>
+        <div class="k-val">${s.renew.items.length ? h + '<small>h</small> ' + m + '<small>m</small>' : '—'}</div>
+        <div class="k-foot">按本地时间估算</div></div>`;
+
+    $('#sch-advice').innerHTML = `<b>先做什么</b><span>${esc(scheduleAdvice(t))}</span>`;
+
+    const row = (it, mode) => {
+      let chip;
+      if (mode === 'renew') {
+        chip = it.exhausted
+          ? '<span class="chip red">今天用完</span>'
+          : `<span class="chip green">剩 ${esc(fmt(it.left))}</span>`;
+      } else if (mode === 'cycle') {
+        chip = `<span class="chip ghost">${esc(it.period)}</span>`;
+      } else {
+        chip = `<span class="chip ${it.left > 0 ? 'amber' : 'ghost'}">剩 ${esc(fmt(it.left))}</span>`;
+      }
+      const p = byId(it.id);
+      const qt = p ? QUOTA_TYPES[p.quotaType] : { short: '' };
+      return `<div class="sch-row${it.exhausted ? ' out' : ''}">
+        <div class="sch-name">
+          <b>${esc(it.name)}</b>
+          <span>${esc(qt.short)} · 额度 ${esc(fmt(it.cap))}</span>
+        </div>
+        <div class="sch-meter"><i style="width:${it.pct}%"></i></div>
+        <div class="sch-num"><span>已用 ${esc(fmt(it.used))}</span>${chip}</div>
+      </div>`;
+    };
+
+    const fill = (sel, items, mode, emptyText) => {
+      $(sel).innerHTML = items.length
+        ? items.map(it => row(it, mode)).join('')
+        : `<div class="sch-empty">${esc(emptyText)}</div>`;
+    };
+
+    fill('#sch-renew', s.renew.items, 'renew', '清单里还没有每日刷新的平台，先去「我的额度」把已开通的加进来。');
+    fill('#sch-cycle', s.cycle.items, 'cycle', '当前清单里没有每周 / 每月刷新的平台。');
+    fill('#sch-once', s.once.items, 'once', '当前清单里没有礼包或试用额度——没有会过期的东西，压力小一点。');
+  }
+
+  /* ============================================================
      路由 & 初始化
      ============================================================ */
   const VIEWS = {
@@ -3703,6 +3867,7 @@ const DEFAULT_WALLET = {
     registry: { title: '平台库', sub: '按形态、区域、类型筛选', render: renderRegistry },
     router:   { title: '任务路由', sub: '按需求量算出免费方案', render: () => { renderRouterForm(); runRoute(); } },
     wallet:   { title: '我的额度', sub: '已开通清单与重置节奏', render: renderWallet },
+    schedule: { title: '重置日程', sub: '谁今天刷新、谁只减不增', render: renderSchedule },
     intel:    { title: '情报与避坑', sub: '政策变更时间线', render: renderIntel }
   };
 
@@ -3845,6 +4010,111 @@ function walletTotals(entries, byIdFn, now) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey };
+}
+
+
+  /* ============================================================
+   重置日程（纯函数）
+   ------------------------------------------------------------
+   数据里真实存在的只有 reset 字段：daily / weekly / monthly / once / none。
+   没有一家平台公示「每周哪天重置」「每月几号重置」，全库 expiresAt 也是 0 条。
+   所以这个视图只做三件有据可依的事：
+     1. 今天会刷新的（reset=daily）——能算到本地 0 点的倒计时
+     2. 周期性刷新但日期未公示的（weekly / monthly）——只标周期，不编日期
+     3. 只减不增的（reset=once，含礼包/试用）——提醒优先烧
+   算不出来的东西就不显示，这比给个假日期更有用。
+   ============================================================ */
+
+/* 距下一个本地 0 点的毫秒数 */
+function msToMidnight(now) {
+  const d = now ? new Date(now) : new Date();
+  const next = new Date(d);
+  next.setHours(24, 0, 0, 0);
+  return Math.max(0, next - d);
+}
+
+/* 主函数：把平台 + 钱包记录整理成日程
+   返回 {
+     renew  : { items: [...] },   今天会刷新的
+     cycle  : { items: [...] },   周期刷新但日期未公示
+     once   : { items: [...] },   只减不增
+     totals : { renewCap, renewUsed, renewLeft, onceCap, onceUsed, onceLeft },
+     hidden : 因未开通 / 无额度 / 找不到而跳过的条数
+   }
+   每条 item: { id, name, reset, cap, used, left, pct, exhausted, hoursLeft, period } */
+function scheduleOf(platforms, wallet, now) {
+  const at = now ? new Date(now) : new Date();
+  const ms = msToMidnight(at);
+  const hoursLeft = Math.floor(ms / 3600000);
+  const minsLeft = Math.floor((ms % 3600000) / 60000);
+
+  const renew = [], cycle = [], once = [];
+  const totals = { renewCap: 0, renewUsed: 0, renewLeft: 0, onceCap: 0, onceUsed: 0, onceLeft: 0 };
+  const seen = {};
+  let hidden = 0;
+
+  (platforms || []).forEach(p => {
+    const w = (wallet || {})[p.id];
+    if (!w || w.enabled === false) { hidden++; return; }   /* 没开通或已停用，不进日程 */
+
+    const reset = p.reset || 'none';
+    if (reset === 'none' || p.quotaType === 'selfhost' || p.quotaType === 'freechat') {
+      hidden++;
+      return;
+    }
+
+    const u = usageOf(p, w, at);
+    if (u.mode === 'none') { hidden++; return; }
+
+    seen[p.id] = 1;
+    const base = {
+      id: p.id,
+      name: p.name,
+      reset,
+      cap: u.cap,
+      used: u.used,
+      left: u.left,
+      pct: u.pct,
+      exhausted: u.left <= 0,
+      hoursLeft,
+      minsLeft,
+      /* 日期是否真的已知——给渲染层用，避免 UI 上出现「下周二」这种编出来的说法 */
+      dateKnown: reset === 'daily',
+      period: reset === 'weekly' ? '每周刷新' : reset === 'monthly' ? '每月刷新' : ''
+    };
+
+    if (reset === 'daily') {
+      renew.push(base);
+      totals.renewCap += u.cap;
+      totals.renewUsed += u.used;
+      totals.renewLeft += u.left;
+    } else if (reset === 'weekly' || reset === 'monthly') {
+      cycle.push(base);
+    } else {
+      /* 其余（once，或礼包/试用）都按「只减不增」处理 */
+      once.push(base);
+      totals.onceCap += u.cap;
+      totals.onceUsed += u.used;
+      totals.onceLeft += u.left;
+    }
+  });
+
+  /* 排序按「还剩多少」倒序：剩得多的先安排，快见底的也一眼能看到 */
+  renew.sort((a, b) => b.left - a.left);
+  cycle.sort((a, b) => b.left - a.left);
+  once.sort((a, b) => b.left - a.left);
+
+  return { renew: { items: renew }, cycle: { items: cycle }, once: { items: once }, totals, hidden };
+}
+
+/* 一句话行动建议：先烧不会回来的，再用每天回来的 */
+function scheduleAdvice(totals) {
+  if (totals.onceLeft > 0 && totals.renewLeft > 0) {
+    return '先烧「只减不增」的那部分——每天刷新的明天还会回来，一次性的没了就是没了。';
+  }
+  if (totals.onceLeft > 0) return '当前只有一次性额度可用，没有可再生的，省着点规划。';
+  if (totals.renewLeft > 0) return '当前全是可再生的日额度，今天用不完也不亏，明天照样满血。';
+  return '清单里还没有登记可用的额度，先去「我的额度」把已开通的平台加进来。';
 }
 
 

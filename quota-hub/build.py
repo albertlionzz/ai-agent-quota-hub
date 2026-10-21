@@ -19,6 +19,7 @@ verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
 usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
 palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
 walletio = (ASSETS / "walletio.js").read_text(encoding="utf-8")
+schedule = (ASSETS / "schedule.js").read_text(encoding="utf-8")
 
 # 模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
@@ -28,6 +29,7 @@ walletio = (ASSETS / "walletio.js").read_text(encoding="utf-8")
 for ph, payload in [
     ("/*__USAGE__*/", usage),
     ("/*__WALLETIO__*/", walletio),
+    ("/*__SCHEDULE__*/", schedule),
     ("/*__CAP__*/", cap),
     ("/*__PIPE__*/", pipe),
     ("/*__ORCH__*/", orch),
