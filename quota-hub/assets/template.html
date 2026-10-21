@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent 免费额度调度中台</title>
+<style>
+/*__STYLE__*/
+</style>
+</head>
+<body>
+
+<!-- ================= 侧边栏 ================= -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">额</div>
+    <div class="brand-text">
+      <b>Quota Hub</b>
+      <span>Free Tier Console</span>
+    </div>
+  </div>
+
+  <div class="nav-label">调度</div>
+  <button class="nav-item active" data-v="overview">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+    总览
+  </button>
+  <button class="nav-item" data-v="registry">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
+    平台库
+    <span class="nav-badge" id="nav-count-reg">0</span>
+  </button>
+  <button class="nav-item" data-v="router">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h4M10 8h4"/><circle cx="8" cy="8" r="2"/><path d="M6 3.5v9M10 3.5v9"/></svg>
+    任务路由
+  </button>
+  <button class="nav-item" data-v="pipeline">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3" cy="8" r="1.6"/><circle cx="13" cy="8" r="1.6"/><path d="M4.6 8h2.2M9.2 8h2.2"/><path d="M8 5.6l1.4 2.4L8 10.4 6.6 8z"/></svg>
+    项目编排
+  </button>
+  <button class="nav-item" data-v="orch">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="3" cy="3.5" r="1.4"/><circle cx="13" cy="3.5" r="1.4"/><circle cx="3" cy="12.5" r="1.4"/><circle cx="13" cy="12.5" r="1.4"/><path d="M4.2 4.5l2.4 2.3M11.8 4.5L9.4 6.8M4.2 11.5l2.4-2.3M11.8 11.5L9.4 9.2"/></svg>
+    总控调度舱
+  </button>
+  <button class="nav-item" data-v="capability">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l5.5 3v5L8 13.5 2.5 10.5v-5z"/><path d="M8 5.5l2.6 1.5v3L8 11.5 5.4 10v-3z"/></svg>
+    能力画像
+  </button>
+  <button class="nav-item" data-v="wallet">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="9" rx="2"/><path d="M2 6.5h12"/><circle cx="11" cy="9.5" r=".8" fill="currentColor" stroke="none"/></svg>
+    我的额度
+    <span class="nav-badge" id="nav-count-wallet">0</span>
+  </button>
+
+  <button class="nav-item" data-v="access">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="5.5" width="12.4" height="7" rx="1.6"/><path d="M4.5 5.5V4a3.5 3.5 0 017 0v1.5"/><path d="M8 8.6v2.4"/></svg>
+    接入通道
+  </button>
+
+  <button class="nav-item" data-v="verify">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l5 2v4.4c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V3.8z"/><path d="M5.9 8.1l1.5 1.5 2.8-2.9"/></svg>
+    接入核验
+  </button>
+
+  <div class="nav-label">参考</div>
+  <button class="nav-item" data-v="intel">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5.2v.6"/></svg>
+    情报与避坑
+  </button>
+
+  <div class="sidebar-foot">
+    数据核对至 <b id="data-date">—</b><br>
+    免费政策随时调整，<br>用前请以控制台为准。
+  </div>
+</aside>
+
+<!-- ================= 主区域 ================= -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <h1 id="page-title">总览</h1>
+      <div class="sub" id="page-sub">免费额度全景与关键判断</div>
+    </div>
+    <div class="search-wrap">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="search" type="search" placeholder="搜索平台、模型、任务…" autocomplete="off">
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ---------- 总览 ---------- -->
+    <section class="view active" id="view-overview">
+      <div class="kpi-grid" id="kpi-row"></div>
+
+      <div class="sec-head">
+        <h2>额度形态分类</h2>
+        <span class="hint">混在一起比「谁免费」是错的——五类额度的可再生性完全不同</span>
+      </div>
+      <div class="quota-legend" id="quota-legend"></div>
+
+      <div class="sec-head">
+        <h2>三条关键判断</h2>
+        <span class="hint">比清单本身更重要</span>
+      </div>
+      <div class="strategy" id="insight-row"></div>
+
+      <div class="sec-head">
+        <h2>近期到期提醒</h2>
+        <span class="hint">45 天内</span>
+      </div>
+      <div class="card" style="padding:14px 16px" id="expiring-row"></div>
+    </section>
+
+    <!-- ---------- 平台库 ---------- -->
+    <section class="view" id="view-registry">
+      <div class="filters" id="filter-bar"></div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 10px">
+        <span style="font-size:12px;color:var(--ink-3)">共 <b id="result-count" style="color:var(--ink);font-family:var(--mono)">0</b> 个结果 · 点击卡片看详情</span>
+      </div>
+      <div class="platform-grid" id="platform-grid"></div>
+    </section>
+
+    <!-- ---------- 任务路由 ---------- -->
+    <section class="view" id="view-router">
+      <div class="router-grid">
+        <div class="card form-panel">
+          <h3>描述你的任务</h3>
+
+          <div class="field">
+            <label>任务类型</label>
+            <div class="task-chips" id="task-chips"></div>
+          </div>
+
+          <div class="field">
+            <label>每日请求次数 <span class="hintline">次</span></label>
+            <input type="number" id="r-reqs" min="1" step="10" value="200">
+          </div>
+
+          <div class="field">
+            <label>单次平均输入 <span class="hintline">tokens</span></label>
+            <input type="number" id="r-inTok" min="1" step="100" value="3000">
+          </div>
+
+          <div class="field">
+            <label>单次平均输出 <span class="hintline">tokens</span></label>
+            <input type="number" id="r-outTok" min="1" step="50" value="800">
+          </div>
+
+          <div style="font-size:11px;color:var(--ink-3);line-height:1.6;padding:9px 11px;background:var(--bg);border-radius:8px;margin-bottom:14px">
+            参考：1 万 tokens ≈ 7000 个汉字。一份 30 页研报约 4~5 万 tokens。
+            做长文分析时，单次输入通常远超输出的 20 倍以上。
+          </div>
+
+          <button class="run-btn" id="run-route">计算方案</button>
+        </div>
+
+        <div class="card result-panel" id="route-out"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 项目编排 ---------- -->
+    <section class="view" id="view-pipeline">
+      <div class="card pipe-setup">
+        <div class="pipe-setup-row">
+          <div style="flex:1;min-width:0">
+            <div class="ps-label">选一个项目模板</div>
+            <div class="tpl-chips" id="pipe-tpls"></div>
+          </div>
+        </div>
+
+        <div class="pipe-setup-row">
+          <div style="flex:1;min-width:0">
+            <div class="ps-label">项目简报 <span class="hintline">每个阶段的提示词都会带上它，写清对象、目标、边界</span></div>
+            <textarea id="pipe-brief" rows="3" spellcheck="false"></textarea>
+          </div>
+        </div>
+
+        <div class="pipe-setup-row inline-rows">
+          <div>
+            <div class="ps-label">规模</div>
+            <div class="seg-group" id="pipe-scales"></div>
+          </div>
+          <div>
+            <div class="ps-label">执行模式</div>
+            <div class="seg-group" id="pipe-modes"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="pipe-summary" style="margin-top:18px"></div>
+      <div id="pipe-verdict"></div>
+
+      <div class="sec-head">
+        <h2>阶段流水线</h2>
+        <span class="hint">每步只做一件事，换一个平台，只递交交接卡</span>
+      </div>
+      <div class="stage-list" id="pipe-stages"></div>
+
+      <div class="sec-head">
+        <h2>额度分摊</h2>
+        <span class="hint">各平台当日被占用的比例</span>
+      </div>
+      <div class="card" style="padding:6px 18px 14px">
+        <table class="alloc-table">
+          <thead><tr><th>平台</th><th>形态</th><th>阶段数</th><th>tokens</th><th>占其日额度</th></tr></thead>
+          <tbody id="pipe-alloc"></tbody>
+        </table>
+      </div>
+
+      <div class="sec-head">
+        <h2>导出</h2>
+        <span class="hint">手册给人看，脚本给机器跑</span>
+      </div>
+      <div class="card" style="padding:16px 18px">
+        <div class="export-row" id="pipe-export"></div>
+        <div class="pipe-note">
+          <b>脚本模式说明：</b>导出的 <span class="mono">.py</span> 零依赖，用 urllib 直连各平台 OpenAI 兼容端点，
+          按阶段串行执行、只把「交接卡」投喂给下一阶段，遇 429 自动切备选平台。
+          <b>你需要自己做两件事：</b>① 把各平台的 <span class="mono">model id</span> 填进 <span class="mono">PROVIDERS</span>（免费模型 id 每月都可能变，只能对着控制台抄）；
+          ② 把 Key 放进环境变量，脚本不保存密钥。需要联网检索的阶段脚本会自动停下来，让你在网页版人工跑完再继续。
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 总控调度舱 ---------- -->
+    <section class="view" id="view-orch">
+      <div class="card pipe-setup">
+        <div class="pipe-setup-row">
+          <div style="flex:1;min-width:0">
+            <div class="ps-label">选一个项目模板</div>
+            <div class="tpl-chips" id="orch-tpls"></div>
+          </div>
+        </div>
+
+        <div class="pipe-setup-row">
+          <div style="flex:1;min-width:0">
+            <div class="ps-label">总体目的（GOAL） <span class="hintline">每一轮循环总控都要原样复述它——这是全局锚点</span></div>
+            <textarea id="orch-brief" rows="3" spellcheck="false"></textarea>
+          </div>
+        </div>
+
+        <div class="pipe-setup-row inline-rows">
+          <div>
+            <div class="ps-label">规模</div>
+            <div class="seg-group" id="orch-scales"></div>
+          </div>
+          <div>
+            <div class="ps-label">执行模式</div>
+            <div class="seg-group" id="orch-modes"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="orch-summary" style="margin-top:18px"></div>
+      <div id="orch-verdict"></div>
+
+      <div class="sec-head">
+        <h2>角色分配</h2>
+        <span class="hint">按能力画像匹配，不是按名气</span>
+      </div>
+      <div class="role-grid" id="orch-roles"></div>
+
+      <div class="sec-head">
+        <h2>循环机制</h2>
+        <span class="hint">每个任务执行完都回到总控，不是一条直线跑到底</span>
+      </div>
+      <div class="card" style="padding:16px 18px">
+        <div class="loop-diagram">
+          <div class="loop-node chief">总控读状态卡 → 复述 GOAL → 一致性检查</div>
+          <div class="loop-arrow">↓ 派单（每批 ≤ 3 个，每个带验收标准）</div>
+          <div class="loop-node worker">Worker 执行 → 回传回执卡（不回全文）</div>
+          <div class="loop-arrow">↓</div>
+          <div class="loop-node review">Reviewer 异模型审查（五类冲突）</div>
+          <div class="loop-arrow">↓ 通过 → 通过；返工 → 退回该任务；升级 → 人工裁决</div>
+          <div class="loop-node chief">更新状态卡 v+1 → 回到顶部</div>
+        </div>
+        <div class="pipe-note">
+          <b>为什么必须回到总控：</b>流水线只保证「每步都做了」，不保证「合起来还对」。
+          数字冲突、术语漂移、结论互斥这三件事，只有拿着全局状态的人能发现——单看任何一个阶段的产出，它都是自洽的。
+        </div>
+      </div>
+
+      <div class="sec-head">
+        <h2>任务清单</h2>
+        <span class="hint">每个任务一个执行模型 + 一个异模型审查</span>
+      </div>
+      <div class="stage-list" id="orch-stages"></div>
+
+      <div class="sec-head">
+        <h2>一致性检查规则</h2>
+        <span class="hint">「保持一致性」是空话，落到五类可判定的冲突才算数</span>
+      </div>
+      <div class="card" style="padding:6px 18px 12px" id="orch-checks"></div>
+
+      <div class="sec-head">
+        <h2>命中经验 <span class="nav-badge" id="orch-pb-count" style="margin-left:6px">0</span></h2>
+        <span class="hint">经验库按关键词命中，自动注入本次方案</span>
+      </div>
+      <div class="card" style="padding:14px 18px" id="orch-pb"></div>
+
+      <div class="sec-head">
+        <h2>导出</h2>
+        <span class="hint">总控提示词单独一份，最常用</span>
+      </div>
+      <div class="card" style="padding:16px 18px">
+        <div class="export-row" id="orch-export"></div>
+        <div class="pipe-note">
+          <b>怎么用：</b>先把「总控提示词」贴给总控模型，它会自己拆任务、派单、审查、督促。
+          执行手册是给人看的对照表——你可以照着它核对总控有没有漏项。
+          <b>经验库</b>导出后可以在下次项目里导入，跑过一轮后把新踩的坑加进去，同类项目会自动带上。
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 能力画像 ---------- -->
+    <section class="view" id="view-capability">
+      <div class="sec-head">
+        <h2>模型能力画像</h2>
+        <span class="hint">九维评分 · 每条都挂原始评测数字与来源</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="overflow-x:auto">
+          <table class="cap-table" id="cap-table"></table>
+        </div>
+      </div>
+
+      <div class="sec-head">
+        <h2>评测来源可信度</h2>
+        <span class="hint">这个分级比分数本身更重要</span>
+      </div>
+      <div class="card" style="padding:6px 18px 12px" id="cap-src"></div>
+
+      <div class="sec-head">
+        <h2>角色能力权重</h2>
+        <span class="hint">同一张画像，不同角色看的维度不一样</span>
+      </div>
+      <div class="card" style="padding:6px 18px 12px" id="cap-role"></div>
+
+      <div class="pipe-note" style="margin-top:16px">
+        <b>怎么读这张表：</b>分数是把原始评测归一化到 0~100 的结果，<b>不要跨来源比较分数</b>——
+        LMArena 的 Elo 和 SuperCLUE 的分项分不是同一把尺子。要看原始数字就点开每条的 <span class="mono">evid</span>。
+        真正可靠的做法：先按这里的排名圈出 2~3 个候选，再拿你自己的真实任务各跑一遍。
+      </div>
+    </section>
+
+    <!-- ---------- 接入通道 ---------- -->
+    <section class="view" id="view-access">
+      <div class="card">
+        <div class="card-head">
+          <h2>三类额度互不通用</h2>
+          <p>先分清你手上的是哪一种。这一步搞错，后面全白配——订阅额度给不出 API key，网页额度脚本拿不到。</p>
+        </div>
+        <div class="kind-grid" id="acc-kinds"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>五条接入路径</h2>
+          <p>按省心程度排序。选哪条取决于一件事：<b>你要不要脚本化</b>——不要就选前两条，要就选网关。</p>
+        </div>
+        <div class="path-list" id="acc-paths"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>账号登录即可用的 CLI / Agent</h2>
+          <p>零 key 路线。装完登录就跑，额度跟账号走。下面「已终止」的两条是 2026 年被砍的，网上教程还在推荐。</p>
+        </div>
+        <div id="acc-agents"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>网关：把 N 个 key 收成 1 个端点</h2>
+          <p>要脚本化又要省心，这是答案。一次配置，脚本只认一个 base_url + 一个 key，新增平台改配置不动代码。</p>
+        </div>
+        <div class="gw-grid" id="acc-gw"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>各平台接入方式速查</h2>
+          <p>按兑现方式分类。标「网页」的意味着脚本拿不到，编排流水线里只能人工跑。</p>
+        </div>
+        <div id="acc-plat"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>按当前方案导出网关配置</h2>
+          <p>生成 LiteLLM 的 config.yaml 和只认一个端点的 runner。配置里已按方案的平台顺序写好 fallback 链。</p>
+        </div>
+        <div class="export-row" id="acc-export"></div>
+        <div class="pipe-note">
+          <b>为什么用 openai/ + api_base 而不是各家专有 provider 名：</b>绝大多数国内外平台都是 OpenAI 兼容端点，
+          这是 LiteLLM 里唯一不会因为 provider 命名变化而失效的写法。<br>
+          <b>安全提醒：</b>用官方 Docker 镜像并固定版本，不要用 latest 跑生产。2026-03 曾有投毒版本在 PyPI 存活约 40 分钟。
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 接入核验 ---------- -->
+    <section class="view" id="view-verify">
+      <div class="card">
+        <div class="card-head">
+          <h2>为什么需要这一页</h2>
+          <p>额度表再准，接不通也是零。本轮核实里，<b>MiniMax、讯飞、Kimi、LongCat 四家的 base_url 都出现了 2~3 个互相冲突的版本</b>，
+            而 DeepSeek、Groq、Kimi 的 model id 又刚经历过一轮集体退役。这一页只做两件事：给出以官方文档为准的接入硬事实，
+            以及导出一个能用你自己的 key 跑一遍的自检脚本。</p>
+        </div>
+        <div class="kpi-grid" id="verify-summary"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>接入总表</h2>
+          <p>每一条都挂着官方出处与核实日期。标了「口径冲突」的说明多个来源说法不一致——这类不要照抄，去控制台确认。</p>
+        </div>
+        <div class="filters" id="verify-filters"></div>
+        <div id="verify-list" class="vlist"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>把对错交给脚本</h2>
+          <p>下载三件套：<b>verify_all.py</b> 逐个探测已配置的端点，<b>.env 模板</b> 照着填 key，
+            自检脚本默认用 <code class="mono">GET /models</code> ——<b>不消耗任何 token 与请求次数</b>，失败时自动降级为最小请求重试。</p>
+        </div>
+        <div class="export-row" id="verify-export"></div>
+        <div class="pipe-note">
+          <b>三种错误的修法完全不同，先分清是哪一类：</b><br>
+          <code class="mono">401</code> = key 无效或被吊销 → 去控制台重新生成<br>
+          <code class="mono">403</code> = key 有效但没开通这个模型 / 地域不对 → 去控制台开通<br>
+          <code class="mono">404</code> = base_url 写错了 → 改端点，跟 key 无关（百炼的免费额度仅限华北 2，用错地域不报错但直接计费）<br>
+          <code class="mono">429</code> = 配置是对的，只是限速或额度耗尽 → 降并发或等重置
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>口径冲突清单</h2>
+          <p>这些是本轮核实中多个来源互相打架的地方。处理方式统一为：<b>以官方页面为准，并在上生产前用自检脚本确认一次</b>。</p>
+        </div>
+        <div id="verify-conflicts"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>已退役 id 与端点</h2>
+          <p>这些名字在 2026 年的教程里仍在流传，用了会直接 404，或者更糟——被静默路由到另一个模型上。</p>
+        </div>
+        <div id="verify-retired"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 我的额度 ---------- -->
+    <section class="view" id="view-wallet">
+      <div class="kpi-grid" id="wallet-summary"></div>
+
+      <div class="sec-head">
+        <h2>已开通清单</h2>
+        <span class="hint">开关控制是否计入产能估算</span>
+      </div>
+      <div class="wallet-list" id="wallet-list"></div>
+      <div class="wadd" id="wallet-add"></div>
+
+      <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.65">
+        <b>说明：</b>这个清单只记录「哪些平台你已经开通」，不采集任何 Key、也不上报用量。
+        所有数据保存在浏览器本地（localStorage），换设备不会同步。
+        重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
+      </div>
+    </section>
+
+    <!-- ---------- 情报 ---------- -->
+    <section class="view" id="view-intel">
+      <div class="sec-head">
+        <h2>政策变更时间线</h2>
+        <span class="hint">这类数据为什么必须定期重查</span>
+      </div>
+      <div class="card" style="padding:20px 22px">
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div class="sec-head">
+        <h2>避坑清单</h2>
+        <span class="hint">每一条都是真实踩过的坑</span>
+      </div>
+      <div class="pit-grid" id="pitfalls"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ================= 抽屉 ================= -->
+<div class="drawer-mask" id="drawer-mask"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<script>
+/*__DATA__*/
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>

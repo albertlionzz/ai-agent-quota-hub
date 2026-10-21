@@ -1,0 +1,5 @@
+# 统一 LF，避免 Windows 换行符污染 diff
+* text=auto eol=lf
+
+# 构建产物：diff 里看到的是压缩前后的差异，意义不大
+*.html linguist-generated=false
