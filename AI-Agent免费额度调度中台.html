@@ -7,7 +7,7 @@
 <style>
 /* ============================================================
    AI Agent 免费额度调度中台 — 样式
-   浅色专业控制台风格
+   浅色毛玻璃控制台风格（glassmorphism）
    ============================================================ */
 
 :root {
@@ -1255,6 +1255,203 @@ kbd {
 
 @media (max-width: 560px) {
   .wu-left { margin-left: 0; }
+}
+
+/* ============================================================
+   毛玻璃皮肤（glassmorphism）
+   ------------------------------------------------------------
+   做法不是逐条改写上面 60 处 background，而是：
+     1) 重定义 --card / --shadow 等 token，让所有 var(--card) 一次变半透明；
+     2) 在 html 上铺一层柔光底，body::before 放四团模糊色斑——
+        没有这层色斑，backdrop-filter 模糊一片纯色等于没效果；
+     3) 只给「面板级」容器加 blur 与高光描边，小控件（chip/kbd）保持轻量，
+        因为 48 张平台卡各挂一个大半径 blur 会拖慢滚动。
+   ============================================================ */
+
+:root {
+  /* 面板底色：46% 白，透出底下的色斑但保证文字对比度 */
+  --card:       rgba(255, 255, 255, .62);
+  --bg:         rgba(255, 255, 255, .26);
+  --bg-alt:     rgba(236, 240, 247, .50);
+
+  --glass:       rgba(255, 255, 255, .62);
+  --glass-strong:rgba(255, 255, 255, .72);
+  --glass-edge:  rgba(255, 255, 255, .78);
+  --glass-blur:  18px;
+  --glass-hi:    inset 0 1px 0 rgba(255, 255, 255, .85);
+
+  --shadow:    0 1px 2px rgba(24, 32, 56, .04), 0 8px 24px rgba(24, 32, 56, .07);
+  --shadow-h:  0 2px 8px rgba(24, 32, 56, .08), 0 18px 44px rgba(24, 32, 56, .12);
+  --line:      rgba(24, 32, 56, .10);
+  --line-2:    rgba(24, 32, 56, .06);
+}
+
+html {
+  background:
+    radial-gradient(120% 90% at 50% -10%, #fcfeff 0%, #eef3fb 34%, #e3eaf6 100%)
+    #e7edf7;
+}
+
+/* 柔光色斑：固定定位，滚动时卡片从它上面掠过去，模糊才有变化。
+   注意不要用 z-index:-1 —— 负层级会被画到 html 画布背景之下，整层看不见。
+   这里用 body 相对定位 + 侧栏/主区抬到 1 层，色斑就落在中间。 */
+body { position: relative; background: transparent; }
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 3% 6%,   rgba(47, 95, 224, .30), transparent 64%),
+    radial-gradient(28% 30% at 100% 0%, rgba(120, 62, 214, .24), transparent 66%),
+    radial-gradient(34% 36% at 96% 96%, rgba(15, 137, 118, .22), transparent 66%),
+    radial-gradient(34% 38% at 4% 96%,  rgba(196, 122, 26, .18), transparent 68%),
+    radial-gradient(60% 55% at 52% 42%, rgba(255, 255, 255, .55), transparent 72%);
+}
+
+.sidebar, .main { position: relative; z-index: 1; }
+
+/* ---------- 面板层：模糊 + 高光边 ---------- */
+.sidebar,
+.topbar,
+.card,
+.kpi,
+.qtype,
+.pcard,
+.witem,
+.drawer,
+.stg,
+.pit,
+.demand-box,
+.route-row,
+.stage-card,
+.role-card,
+.loop-node,
+.kind-card,
+.path-card,
+.gw-card,
+.gw-verdict,
+.ap-item,
+.pipe-note,
+.wc,
+.rw,
+.seg {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+}
+
+.card,
+.kpi,
+.qtype,
+.pcard,
+.witem,
+.stg,
+.pit,
+.demand-box,
+.route-row,
+.stage-card,
+.role-card,
+.loop-node,
+.kind-card,
+.path-card,
+.gw-card,
+.gw-verdict,
+.ap-item,
+.pipe-note,
+.wc,
+.rw {
+  background: var(--glass);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-hi), var(--shadow);
+}
+
+/* 侧栏：比卡片更透一点，能看见背后的色斑，但文字仍压得住 */
+.sidebar {
+  background: rgba(255, 255, 255, .44);
+  border-right: 1px solid rgba(255, 255, 255, .62);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+}
+
+.topbar {
+  background: rgba(255, 255, 255, .52);
+  border-bottom: 1px solid rgba(255, 255, 255, .66);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  backdrop-filter: blur(26px) saturate(180%);
+}
+
+/* 抽屉：要挡内容，透但不能太透 */
+.drawer {
+  background: rgba(255, 255, 255, .80);
+  border-left: 1px solid rgba(255, 255, 255, .75);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+}
+.drawer-mask {
+  background: rgba(20, 26, 40, .26);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* ---------- 控件层：半透明但不加 blur ---------- */
+#search,
+input[type=number],
+input[type=text],
+select,
+.vsearch,
+.wu-input {
+  background: rgba(255, 255, 255, .66);
+  border: 1px solid rgba(24, 32, 56, .12);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+#search:focus,
+input[type=number]:focus,
+select:focus,
+.vsearch:focus,
+.wu-input:focus {
+  background: rgba(255, 255, 255, .88);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.fbtn,
+.chip.ghost,
+.kbd,
+kbd,
+.tpl-chip,
+.mini-btn,
+.ghost-btn,
+.task-chip {
+  background: rgba(255, 255, 255, .55);
+  border-color: rgba(255, 255, 255, .7);
+}
+.fbtn.on {
+  background: rgba(47, 95, 224, .12);
+  border-color: rgba(47, 95, 224, .42);
+}
+
+/* 极小的装饰件保留轻投影，别跟着玻璃一起飘 */
+.wtoggle::after { box-shadow: 0 1px 3px rgba(24, 32, 56, .22); }
+.brand-mark { box-shadow: 0 2px 10px rgba(47, 95, 224, .34), var(--glass-hi); }
+
+/* 悬停时抬一点，配合玻璃质感更像浮起 */
+.pcard:hover,
+.witem:hover,
+.kind-card:hover,
+.path-card:hover,
+.ap-item:hover {
+  box-shadow: var(--glass-hi), var(--shadow-h);
+  border-color: rgba(255, 255, 255, .9);
+}
+
+/* 无障碍：系统开启「减少透明」时退回实色，别为了好看牺牲可读性 */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --card: #fff; --glass: #fff; --bg: #f4f5f7; }
+  body::before { display: none; }
+  .sidebar, .topbar, .card, .kpi, .pcard, .witem, .drawer {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
 }
 
 </style>
