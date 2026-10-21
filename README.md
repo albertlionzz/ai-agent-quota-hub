@@ -32,7 +32,7 @@
 | 项目编排 | 6 个模板 × 2 种执行模式，多模型分阶段跑完一个项目 |
 | 总控调度舱 | 四角色（总控 / 执行 / 审查 / 汇总）+ 状态卡 + 五类冲突检查 + 经验库 |
 | 能力画像 | 12 模型 × 9 维得分，每条挂评测来源与可信度分级 |
-| 我的额度 | 手动登记已拥有的额度，与方案联动 |
+| 我的额度 | 已开通清单、重置节奏、用量登记（算得出真实余量） |
 | 接入通道 | 三类额度、五条接入路径、LiteLLM 网关配置生成 |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自检脚本导出 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
@@ -48,7 +48,7 @@ cd quota-hub
 python build.py          # 产出 ../AI-Agent免费额度调度中台.html
 ```
 
-`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（CAP → PIPE → ORCH → ACCESS → VERIFY），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
+`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → CAP → PIPE → ORCH → ACCESS → VERIFY），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
 
 ## 测试
 
@@ -60,9 +60,12 @@ node test-export.js      # 导出脚本语法与要素
 node test-orch.js        # 总控 121 项断言
 node test-access.js      # 网关配置：真实 YAML 解析 + Python 编译（32 项）
 node test-verify.js      # 接入核验 28 项：含「核验表 base 与端点表逐字一致」
+node test-usage.js       # 用量登记纯函数 40 项（解析 1.5万/200k、跨天归零、超额夹取）
 ```
 
 `test-verify.js` 里最有用的一条断言：核验表里的 `base_url` 必须与端点表 `PIPE_BASE` 完全一致 —— 防止只改一处。
+
+`test-usage.js` 直接 `require` 真实的 `assets/usage.js`，而不是把逻辑抄一份 —— 抄一份的测试，代码改了它不会红。
 
 ## 目录结构
 
@@ -83,6 +86,7 @@ quota-hub/
     orchestrator.js        总控调度舱
     access.js              接入通道与网关配置
     verify.js              接入核验（23 家）
+    usage.js               用量登记纯函数（解析 / 余量 / 跨天归零）
 ```
 
 ## 关于数据准确性

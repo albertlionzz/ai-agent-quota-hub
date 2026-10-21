@@ -69,7 +69,7 @@
   </button>
 
   <div class="sidebar-foot">
-    数据核对至 <b id="data-date">—</b><br>
+    数据核对至 <b id="data-date">—</b><span id="data-age" class="age"></span><br>
     免费政策随时调整，<br>用前请以控制台为准。
   </div>
 </aside>
@@ -466,7 +466,8 @@
       <div class="wadd" id="wallet-add"></div>
 
       <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.65">
-        <b>说明：</b>这个清单只记录「哪些平台你已经开通」，不采集任何 Key、也不上报用量。
+        <b>说明：</b>清单记录「哪些平台已开通」，用量靠自己登记（支持 <code>1.5万</code> / <code>200k</code> / <code>3000</code> 这些写法），
+        不采集任何 Key、也不调用官方接口。每日刷新型的「今日已用」跨天自动归零，一次性礼包的「已用」累计不清零。
         所有数据保存在浏览器本地（localStorage），换设备不会同步。
         重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
       </div>

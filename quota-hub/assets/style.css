@@ -1184,3 +1184,68 @@ kbd {
 
 /* 该行末位计数此前贴着卡片右边缘，没有呼吸感；留 10px 内边距 */
 #verify-filters { padding-right: 10px; box-sizing: border-box; }
+
+/* ============================================================
+   用量登记（钱包视图）
+   条目改成可换行：第一行开关+名称+状态，第二行独占一整行的用量条。
+   这样窄屏也不会把用量条挤成一条缝。
+   ============================================================ */
+.witem { flex-wrap: wrap; }
+.winfo { flex: 1 1 auto; }
+
+.wu {
+  flex: 1 0 100%;
+  display: flex; flex-direction: column; gap: 5px;
+  margin-top: 2px; padding-top: 9px;
+  border-top: 1px dashed var(--line-2);
+}
+.witem.off .wu { opacity: .72; }
+
+.wu-bar {
+  height: 4px; border-radius: 2px;
+  background: var(--bg-alt); overflow: hidden;
+}
+.wu-bar i {
+  display: block; height: 100%; border-radius: 2px;
+  background: var(--accent); transition: width .22s ease;
+}
+.wu.over .wu-bar i { background: var(--red); }
+
+.wu-line {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; color: var(--ink-3);
+}
+.wu-k { flex: 0 0 auto; }
+.wu-total { font-family: var(--mono); color: var(--ink-3); }
+.wu-left {
+  margin-left: auto; font-weight: 600; color: var(--ink-2);
+  font-family: var(--mono);
+}
+.wu.over .wu-left { color: var(--red); }
+
+.wu-input {
+  width: 64px; flex: 0 0 64px;
+  padding: 3px 6px; text-align: right;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 5px;
+  outline: none; transition: border-color .14s, box-shadow .14s;
+}
+.wu-input:hover { border-color: var(--ink-3); }
+.wu-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.wu-input.bad { border-color: var(--red); box-shadow: 0 0 0 2px var(--red-soft); }
+
+/* 侧栏数据新鲜度 */
+.sidebar-foot .age {
+  font-style: normal; font-size: 10.5px; color: var(--ink-3);
+  margin-left: 3px;
+  white-space: nowrap;   /* 侧栏只有 ~180px，不加会把「2 天前」断成「2 天」「前」 */
+}
+.sidebar-foot .age.stale {
+  color: var(--amber); font-weight: 600;
+  border-bottom: 1px dotted currentColor; cursor: help;
+}
+
+@media (max-width: 560px) {
+  .wu-left { margin-left: 0; }
+}

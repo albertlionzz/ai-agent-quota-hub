@@ -16,12 +16,15 @@ cap = (ASSETS / "capability.js").read_text(encoding="utf-8")
 orch = (ASSETS / "orchestrator.js").read_text(encoding="utf-8")
 access = (ASSETS / "access.js").read_text(encoding="utf-8")
 verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
+usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
 
-# 四个模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
+# 模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
 # access 依赖 pipeline 的 PIPE_BASE 端点表，两者都必须排在 pipeline 之后；
 # verify 依赖 pipeline 的 downloadFile/copyText，同样必须排在 pipeline 之后。
+# usage 是无依赖纯函数，放最前面，方便 renderWallet 与测试共同使用。
 for ph, payload in [
+    ("/*__USAGE__*/", usage),
     ("/*__CAP__*/", cap),
     ("/*__PIPE__*/", pipe),
     ("/*__ORCH__*/", orch),

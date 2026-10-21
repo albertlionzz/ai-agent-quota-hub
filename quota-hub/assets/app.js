@@ -7,11 +7,27 @@
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const LS_KEY = 'quotaHub.wallet.v1';
+  const UI_KEY = 'quotaHub.ui.v1';
+
+  /* 上次停在哪一页、筛了什么，刷新后要还在。
+     单文件工具最常见的毛病是每次打开都回首页，等于每天重新找一遍。 */
+  function loadUI() {
+    try { return JSON.parse(localStorage.getItem(UI_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function saveUI() {
+    try {
+      localStorage.setItem(UI_KEY, JSON.stringify({
+        view: state.view, search: state.search, filters: state.filters
+      }));
+    } catch (e) {}
+  }
+
+  const ui = loadUI();
 
   const state = {
     view: 'overview',
-    search: '',
-    filters: { region: 'all', cat: 'all', qtype: 'all' },
+    search: typeof ui.search === 'string' ? ui.search : '',
+    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all' }, ui.filters || {}),
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -293,6 +309,7 @@
         $$('.fbtn', $('#filter-bar')).forEach(x => {
           if (x.dataset.g === b.dataset.g) x.classList.toggle('on', x === b);
         });
+        saveUI();
         renderRegistry();
       });
     }
@@ -584,6 +601,19 @@
         const p = byId(id);
         const qt = QUOTA_TYPES[p.quotaType];
         const ri = resetInfo(p);
+        const u = usageOf(p, w);
+        const usage = u.mode === 'none' ? '' : `
+          <div class="wu${u.over ? ' over' : ''}">
+            <div class="wu-bar"><i style="width:${u.pct}%"></i></div>
+            <div class="wu-line">
+              <span class="wu-k">${u.mode === 'oneshot' ? '已用' : '今日已用'}</span>
+              <input class="wu-input" data-wu="${id}" value="${esc(fmtTok(u.used))}"
+                     inputmode="decimal" spellcheck="false"
+                     aria-label="${esc(p.name)} 已用 token，可填 1.5万 / 200k">
+              <span class="wu-total">/ ${esc(fmt(u.cap))}</span>
+              <span class="wu-left">剩 ${esc(fmt(u.left))}${u.over ? ' · 已超额' : ''}</span>
+            </div>
+          </div>`;
         return `<div class="witem ${w.enabled ? '' : 'off'}">
           <button class="wtoggle ${w.enabled ? 'on' : ''}" data-wt="${id}" aria-label="启用/停用"></button>
           <div class="winfo">
@@ -596,7 +626,7 @@
             <button class="drawer-close" data-wd="${id}" aria-label="移除" style="width:24px;height:24px;flex:0 0 24px">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="width:11px;height:11px"><path d="M4 4l8 8M12 4l-8 8"/></svg>
             </button>
-          </div>
+          </div>${usage}
         </div>`;
       }).join('');
     }
@@ -610,28 +640,26 @@
          <button class="run-btn" id="wadd-btn" style="width:auto;padding:7px 16px">添加</button>`
       : `<span style="font-size:12px;color:var(--ink-3)">全部平台都已在清单中。</span>`;
 
-    /* 汇总 */
-    const active = entries.filter(([, w]) => w.enabled).map(([id]) => byId(id));
-    const renewCap = active
-      .filter(p => ['forever', 'daily', 'selfhost'].includes(p.quotaType))
-      .reduce((s, p) => s + (p.freeTokensPerDay || 0), 0);
-    const oneShotCap = active
-      .filter(p => ['gift', 'trial'].includes(p.quotaType))
-      .reduce((s, p) => s + (p.tokensTotal || 0), 0);
+    /* 汇总：一次性额度必须扣掉已用，否则「余量」两个字是假的（旧版按 tokensTotal 直接显示） */
+    const activeEntries = entries.filter(([, w]) => w.enabled);
+    const t = walletTotals(activeEntries, byId);
 
     $('#wallet-summary').innerHTML = `
       <div class="kpi"><div class="k-label">已启用</div>
-        <div class="k-val">${active.length}<small>个</small></div>
+        <div class="k-val">${activeEntries.length}<small>个</small></div>
         <div class="k-foot">清单共 ${entries.length} 个</div></div>
       <div class="kpi"><div class="k-label">可再生日额度</div>
-        <div class="k-val k-green">${fmt(renewCap)}<small>tok/日</small></div>
+        <div class="k-val k-green">${fmt(t.renewCap)}<small>tok/日</small></div>
         <div class="k-foot">每天回到满血的部分</div></div>
+      <div class="kpi"><div class="k-label">今日已用</div>
+        <div class="k-val">${fmt(t.usedToday)}<small>tok · ${t.dailyPct}%</small></div>
+        <div class="k-foot">手动登记，跨天自动归零</div></div>
       <div class="kpi"><div class="k-label">一次性余量</div>
-        <div class="k-val k-amber">${fmt(oneShotCap)}<small>tok</small></div>
-        <div class="k-foot">会过期，优先消耗</div></div>
+        <div class="k-val k-amber">${t.oneShotCap ? fmt(t.oneShotLeft) : '—'}${t.oneShotCap ? '<small>tok</small>' : ''}</div>
+        <div class="k-foot">${t.oneShotCap ? `总量 ${fmt(t.oneShotCap)}，已烧掉 ${fmt(t.burned)}` : '清单里暂无礼包 / 试用额度'}</div></div>
       <div class="kpi"><div class="k-label">月度理论产能</div>
-        <div class="k-val k-accent">${fmt(renewCap * 30 + oneShotCap)}<small>tok</small></div>
-        <div class="k-foot">可再生 × 30 + 一次性</div></div>`;
+        <div class="k-val k-accent">${fmt(t.monthly)}<small>tok</small></div>
+        <div class="k-foot">可再生 × 30 + 一次性余量</div></div>`;
 
     /* 事件 */
     $$('[data-wt]').forEach(b => b.addEventListener('click', () => {
@@ -643,6 +671,27 @@
       delete state.wallet[b.dataset.wd];
       saveWallet(); renderWallet();
     }));
+    /* 用量登记：失焦或回车提交。解析不了就回退原值并闪一下红框，
+       绝不静默当 0——静默清零会让「余量」凭空变多，比不填更误导。 */
+    $$('[data-wu]').forEach(inp => {
+      const id = inp.dataset.wu;
+      const p = byId(id);
+      const commit = () => {
+        const next = applyUsage(p, state.wallet[id], inp.value);
+        if (!next) {
+          inp.value = fmtTok(usageOf(p, state.wallet[id]).used);
+          inp.classList.add('bad');
+          setTimeout(() => inp.classList.remove('bad'), 1000);
+          return;
+        }
+        state.wallet[id] = next;
+        saveWallet(); renderWallet();
+      };
+      inp.addEventListener('change', commit);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      });
+    });
     const addBtn = $('#wadd-btn');
     if (addBtn) addBtn.addEventListener('click', () => {
       const id = $('#wadd-sel').value;
@@ -685,10 +734,28 @@
     $('#page-title').textContent = VIEWS[v].title;
     $('#page-sub').textContent = VIEWS[v].sub;
     VIEWS[v].render();
+    saveUI();
     /* 可分享 / 可书签的视图地址；replaceState 在 file:// 下可能受限，忽略失败 */
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  /* 数据新鲜度：免费政策基本按月变，超过 30 天就该重新核。
+     与其在文档里写一句「数据可能过期」然后靠人记，不如把它算出来挂在页脚。 */
+  function renderFreshness() {
+    const el = $('#data-age');
+    if (!el) return;
+    const days = Math.round((new Date() - new Date(DATA_DATE + 'T00:00:00')) / 86400000);
+    if (!isFinite(days) || days < 0) { el.textContent = ''; return; }
+    const stale = days > 30;
+    el.textContent = days === 0 ? '（今天）' : `（${days} 天前）`;
+    el.className = 'age' + (stale ? ' stale' : '');
+    el.title = stale
+      ? `数据距今 ${days} 天。免费政策通常按月调整，建议先到各平台控制台重新核对再决策。`
+      : `数据距今 ${days} 天，仍在 30 天建议复核周期内。`;
+  }
+
+  /*__USAGE__*/
 
   /*__CAP__*/
 
@@ -703,22 +770,28 @@
     $('#nav-count-reg').textContent = PLATFORMS.length;
     $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
     $('#data-date').textContent = DATA_DATE;
+    renderFreshness();
 
     $$('.nav-item').forEach(b => b.addEventListener('click', () => switchView(b.dataset.v)));
 
-    $('#search').addEventListener('input', e => {
-      state.search = e.target.value;
-      if (state.view !== 'registry') switchView('registry');
-      else renderRegistry();
-    });
+    const searchEl = $('#search');
+    if (searchEl) {
+      searchEl.value = state.search;
+      searchEl.addEventListener('input', e => {
+        state.search = e.target.value;
+        if (state.view !== 'registry') switchView('registry');
+        else { renderRegistry(); saveUI(); }
+      });
+    }
 
     $('#drawer-mask').addEventListener('click', closeDrawer);
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeDrawer();
     });
 
-    /* 支持 #router / #registry 等直达链接 */
-    const initial = (location.hash || '').replace('#', '');
+    /* 优先级：URL hash（可分享链接） > 上次停留的视图 > 总览 */
+    const hash = (location.hash || '').replace('#', '');
+    const initial = hash || (VIEWS[ui.view] ? ui.view : '');
     switchView(VIEWS[initial] ? initial : 'overview');
   }
 
