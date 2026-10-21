@@ -701,6 +701,78 @@
   }
 
   /* ============================================================
+     钱包备份：导出 / 导入
+     数据只存在浏览器里，换设备或清缓存就没了。导入必须先出预览，
+     让人看清「会写入几个、覆盖几个」再动手，不能选完文件就直接写。
+     ============================================================ */
+  function walletIoMsg(html, kind) {
+    const box = $('#wallet-io-msg');
+    if (!box) return;
+    if (!html) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="wio-msg ${kind || ''}">${html}</div>`;
+  }
+
+  function walletIoPreview(text) {
+    const known = new Set(PLATFORMS.map(p => p.id));
+    const r = parseWalletBackup(text, known);
+    if (!r.ok) { walletIoMsg('导入失败：' + esc(r.error), 'err'); return; }
+
+    const d = describeBackup(r.entries, state.wallet);
+    const names = d.ids.slice(0, 6).map(id => (byId(id) || {}).name || id).join('、');
+    const more = d.ids.length > 6 ? ` 等 ${d.ids.length} 个` : '';
+
+    const box = $('#wallet-io-msg');
+    box.innerHTML = `<div class="wio-card">
+      <b>导入预览</b>
+      <p>备份里有 <b>${d.total}</b> 个平台：${esc(names)}${esc(more)}。
+        其中 <b>${d.existCount}</b> 个已在当前清单，<b style="color:var(--green)">${d.freshCount}</b> 个是新增。
+        ${r.unknown.length ? `<br>另有 ${r.unknown.length} 个 id 不在平台库里，将被忽略。` : ''}
+        ${r.bad ? `<br>有 ${r.bad} 条记录格式不对，已跳过。` : ''}</p>
+      <div class="wio-actions">
+        <button class="run-btn" data-wio="merge" style="width:auto;padding:7px 14px">合并（保留现有用量）</button>
+        <button class="ghost-btn" data-wio="replace">覆盖（用备份替换全部）</button>
+        <button class="ghost-btn" data-wio="cancel">取消</button>
+      </div>
+    </div>`;
+
+    $$('[data-wio]').forEach(btn => btn.addEventListener('click', () => {
+      const mode = btn.dataset.wio;
+      if (mode === 'cancel') { walletIoMsg('已取消，数据没有变化。', 'mute'); return; }
+      state.wallet = applyWalletBackup(state.wallet, r.entries, mode);
+      saveWallet();
+      renderWallet();
+      $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
+      walletIoMsg(mode === 'merge'
+        ? `已合并：新增 ${d.freshCount} 个平台，原有用量保持不变。`
+        : `已用备份替换全部清单，共 ${Object.keys(state.wallet).length} 个平台。`, 'ok');
+    }));
+  }
+
+  function initWalletIO() {
+    const exp = $('#wallet-export');
+    if (exp) exp.addEventListener('click', () => {
+      const text = JSON.stringify(walletPayload(state.wallet), null, 2);
+      downloadFile(walletFileName(), text, 'application/json');
+      walletIoMsg(`已导出 ${Object.keys(state.wallet).length} 个平台的备份（含用量登记）。`, 'ok');
+    });
+
+    const imp = $('#wallet-import');
+    const file = $('#wallet-file');
+    if (!imp || !file) return;
+
+    imp.addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      if (f.size > 1024 * 1024) { walletIoMsg('文件超过 1 MB，多半不是本工具导出的备份。', 'err'); return; }
+      const reader = new FileReader();
+      reader.onload = () => { file.value = ''; walletIoPreview(String(reader.result)); };
+      reader.onerror = () => { file.value = ''; walletIoMsg('读取文件失败，请重新导出后再试。', 'err'); };
+      reader.readAsText(f);
+    });
+  }
+
+  /* ============================================================
      视图：情报
      ============================================================ */
   function renderIntel() {
@@ -757,6 +829,8 @@
 
   /*__USAGE__*/
 
+  /*__WALLETIO__*/
+
   /*__CAP__*/
 
   /*__PIPE__*/
@@ -774,6 +848,7 @@
     $('#data-date').textContent = DATA_DATE;
     renderFreshness();
     initPalette();
+    initWalletIO();
 
     $$('.nav-item').forEach(b => b.addEventListener('click', () => switchView(b.dataset.v)));
 

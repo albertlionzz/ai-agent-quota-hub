@@ -1592,6 +1592,44 @@ kbd,
 }
 .cmdk-tip b { color: var(--ink-2); font-weight: 650; }
 
+/* ============================================================
+   钱包备份（导出 / 导入）
+   ============================================================ */
+.wio-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.wio-bar .ghost-btn { width: auto; padding: 6px 13px; font-size: 11.5px; }
+.wio-hint { font-size: 11px; color: var(--ink-3); }
+
+#wallet-io-msg { margin-top: 12px; }
+
+.wio-msg {
+  padding: 10px 13px; border-radius: var(--r-sm);
+  font-size: 12px; line-height: 1.6;
+}
+.wio-msg.ok   { background: rgba(18, 128, 92, .10); color: #0d6b4c; }
+.wio-msg.err  { background: rgba(184, 52, 44, .10); color: #8a221c; }
+.wio-msg.mute { background: rgba(24, 32, 56, .05);  color: var(--ink-2); }
+
+.wio-card {
+  padding: 14px 16px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  box-shadow: var(--glass-hi), var(--shadow);
+}
+.wio-card > b { font-size: 12.5px; font-weight: 650; }
+.wio-card > p {
+  margin: 7px 0 12px; font-size: 12px; color: var(--ink-2); line-height: 1.7;
+}
+.wio-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wio-actions .ghost-btn,
+.wio-actions .run-btn { width: auto; padding: 7px 14px; font-size: 11.5px; }
+
 </style>
 </head>
 <body>
@@ -2056,10 +2094,18 @@ kbd,
       <div class="wallet-list" id="wallet-list"></div>
       <div class="wadd" id="wallet-add"></div>
 
+      <div class="wio-bar">
+        <button class="ghost-btn" id="wallet-export">导出备份</button>
+        <button class="ghost-btn" id="wallet-import">导入备份</button>
+        <input type="file" id="wallet-file" accept="application/json,.json" hidden>
+        <span class="wio-hint">JSON 备份，含用量登记。换设备或清缓存前先导一份。</span>
+      </div>
+      <div id="wallet-io-msg"></div>
+
       <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.65">
         <b>说明：</b>清单记录「哪些平台已开通」，用量靠自己登记（支持 <code>1.5万</code> / <code>200k</code> / <code>3000</code> 这些写法），
         不采集任何 Key、也不调用官方接口。每日刷新型的「今日已用」跨天自动归零，一次性礼包的「已用」累计不清零。
-        所有数据保存在浏览器本地（localStorage），换设备不会同步。
+        所有数据保存在浏览器本地（localStorage），换设备不会自动同步——用上面的「导出备份 / 导入备份」迁移。
         重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
       </div>
     </section>
@@ -3563,6 +3609,78 @@ const DEFAULT_WALLET = {
   }
 
   /* ============================================================
+     钱包备份：导出 / 导入
+     数据只存在浏览器里，换设备或清缓存就没了。导入必须先出预览，
+     让人看清「会写入几个、覆盖几个」再动手，不能选完文件就直接写。
+     ============================================================ */
+  function walletIoMsg(html, kind) {
+    const box = $('#wallet-io-msg');
+    if (!box) return;
+    if (!html) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="wio-msg ${kind || ''}">${html}</div>`;
+  }
+
+  function walletIoPreview(text) {
+    const known = new Set(PLATFORMS.map(p => p.id));
+    const r = parseWalletBackup(text, known);
+    if (!r.ok) { walletIoMsg('导入失败：' + esc(r.error), 'err'); return; }
+
+    const d = describeBackup(r.entries, state.wallet);
+    const names = d.ids.slice(0, 6).map(id => (byId(id) || {}).name || id).join('、');
+    const more = d.ids.length > 6 ? ` 等 ${d.ids.length} 个` : '';
+
+    const box = $('#wallet-io-msg');
+    box.innerHTML = `<div class="wio-card">
+      <b>导入预览</b>
+      <p>备份里有 <b>${d.total}</b> 个平台：${esc(names)}${esc(more)}。
+        其中 <b>${d.existCount}</b> 个已在当前清单，<b style="color:var(--green)">${d.freshCount}</b> 个是新增。
+        ${r.unknown.length ? `<br>另有 ${r.unknown.length} 个 id 不在平台库里，将被忽略。` : ''}
+        ${r.bad ? `<br>有 ${r.bad} 条记录格式不对，已跳过。` : ''}</p>
+      <div class="wio-actions">
+        <button class="run-btn" data-wio="merge" style="width:auto;padding:7px 14px">合并（保留现有用量）</button>
+        <button class="ghost-btn" data-wio="replace">覆盖（用备份替换全部）</button>
+        <button class="ghost-btn" data-wio="cancel">取消</button>
+      </div>
+    </div>`;
+
+    $$('[data-wio]').forEach(btn => btn.addEventListener('click', () => {
+      const mode = btn.dataset.wio;
+      if (mode === 'cancel') { walletIoMsg('已取消，数据没有变化。', 'mute'); return; }
+      state.wallet = applyWalletBackup(state.wallet, r.entries, mode);
+      saveWallet();
+      renderWallet();
+      $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
+      walletIoMsg(mode === 'merge'
+        ? `已合并：新增 ${d.freshCount} 个平台，原有用量保持不变。`
+        : `已用备份替换全部清单，共 ${Object.keys(state.wallet).length} 个平台。`, 'ok');
+    }));
+  }
+
+  function initWalletIO() {
+    const exp = $('#wallet-export');
+    if (exp) exp.addEventListener('click', () => {
+      const text = JSON.stringify(walletPayload(state.wallet), null, 2);
+      downloadFile(walletFileName(), text, 'application/json');
+      walletIoMsg(`已导出 ${Object.keys(state.wallet).length} 个平台的备份（含用量登记）。`, 'ok');
+    });
+
+    const imp = $('#wallet-import');
+    const file = $('#wallet-file');
+    if (!imp || !file) return;
+
+    imp.addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      if (f.size > 1024 * 1024) { walletIoMsg('文件超过 1 MB，多半不是本工具导出的备份。', 'err'); return; }
+      const reader = new FileReader();
+      reader.onload = () => { file.value = ''; walletIoPreview(String(reader.result)); };
+      reader.onerror = () => { file.value = ''; walletIoMsg('读取文件失败，请重新导出后再试。', 'err'); };
+      reader.readAsText(f);
+    });
+  }
+
+  /* ============================================================
      视图：情报
      ============================================================ */
   function renderIntel() {
@@ -3727,6 +3845,122 @@ function walletTotals(entries, byIdFn, now) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey };
+}
+
+
+  /* ============================================================
+   钱包备份的导出 / 导入（纯函数）
+   ------------------------------------------------------------
+   解决的问题：数据只存在浏览器 localStorage 里，换设备或清缓存就没了。
+   这里只负责「序列化」与「校验归一」，不碰 DOM，方便单测。
+   导入必须挑剔：宁可报错让人重来，也不要把半截脏数据写进钱包——
+   一旦写坏，用户看到的余量就是错的，而他还以为是对的。
+   ============================================================ */
+
+const WIO_SCHEMA = 1;
+
+/* 导出载荷 */
+function walletPayload(wallet, now) {
+  const at = now instanceof Date ? now : new Date(now || Date.now());
+  return {
+    app: 'ai-agent-quota-hub',
+    schema: WIO_SCHEMA,
+    exportedAt: at.toISOString(),
+    dataDate: (typeof DATA_DATE !== 'undefined' ? DATA_DATE : null),
+    wallet: wallet || {}
+  };
+}
+
+/* 备份文件名：带上日期，方便区分多次导出 */
+function walletFileName(now) {
+  return 'quota-hub-wallet-' + todayKey(now) + '.json';
+}
+
+/* 解析并归一。
+   knownIds: Set，用来剔掉平台库里不存在的 id（旧版本备份、手改文件）。
+   返回 { ok, error, entries, unknown, bad, meta } —— ok 为 false 时 error 说人话。 */
+function parseWalletBackup(text, knownIds, now) {
+  if (typeof text !== 'string' || !text.trim()) {
+    return { ok: false, error: '文件是空的。' };
+  }
+
+  let raw;
+  try { raw = JSON.parse(text); }
+  catch (e) { return { ok: false, error: '不是合法的 JSON，可能是导出时被截断了。' }; }
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, error: '文件结构不对：顶层应该是对象。' };
+  }
+
+  /* 两种来源都接受：本工具导出的 {wallet:{...}}，或一份裸的 {平台id:{...}}。
+     裸 map 的判定要求「至少有一个 key 是已知平台 id」——
+     否则随便一个 JSON 都会被当成钱包，导进去全是未知项。 */
+  let map = null;
+  if (raw.wallet && typeof raw.wallet === 'object' && !Array.isArray(raw.wallet)) {
+    map = raw.wallet;
+  } else if (knownIds) {
+    const keys = Object.keys(raw);
+    if (keys.some(k => knownIds.has(k))) map = raw;
+  }
+
+  if (!map) {
+    return { ok: false, error: '文件里找不到 wallet 字段，看起来不是本工具导出的备份。' };
+  }
+
+  const entries = {};
+  const unknown = [];
+  let bad = 0;
+
+  Object.keys(map).forEach(id => {
+    const v = map[id];
+    if (!v || typeof v !== 'object' || Array.isArray(v)) { bad++; return; }
+    if (knownIds && !knownIds.has(id)) { unknown.push(id); return; }
+
+    const used = parseTok(v.used);
+    entries[id] = {
+      enabled: v.enabled !== false,
+      used: used == null ? 0 : used,
+      usedDate: typeof v.usedDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.usedDate)
+        ? v.usedDate : null,
+      note: typeof v.note === 'string' ? v.note.slice(0, 80) : ''
+    };
+  });
+
+  const n = Object.keys(entries).length;
+  if (!n) {
+    const tail = unknown.length ? `（其中 ${unknown.length} 个平台 id 不在当前平台库里）` : '';
+    return { ok: false, error: '没有可导入的平台' + tail, unknown };
+  }
+
+  return {
+    ok: true,
+    entries,
+    unknown,
+    bad,
+    meta: { schema: raw.schema || null, exportedAt: raw.exportedAt || null, dataDate: raw.dataDate || null }
+  };
+}
+
+/* 两种合并方式：
+   merge   —— 只补当前清单里没有的平台，已有平台的原样保留（不动别人的用量）
+   replace —— 整份替换 */
+function applyWalletBackup(current, entries, mode) {
+  const cur = current || {};
+  if (mode === 'replace') return Object.assign({}, entries);
+
+  const out = Object.assign({}, cur);
+  Object.keys(entries || {}).forEach(id => {
+    if (!out[id]) out[id] = entries[id];
+  });
+  return out;
+}
+
+/* 导入预览的人类可读摘要 */
+function describeBackup(entries, current) {
+  const ids = Object.keys(entries || {});
+  const exist = ids.filter(id => current && current[id]);
+  const fresh = ids.filter(id => !(current && current[id]));
+  return { total: ids.length, existCount: exist.length, freshCount: fresh.length, ids };
 }
 
 
@@ -8314,6 +8548,7 @@ function initPalette() {
     $('#data-date').textContent = DATA_DATE;
     renderFreshness();
     initPalette();
+    initWalletIO();
 
     $$('.nav-item').forEach(b => b.addEventListener('click', () => switchView(b.dataset.v)));
 

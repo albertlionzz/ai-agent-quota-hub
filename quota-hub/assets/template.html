@@ -470,10 +470,18 @@
       <div class="wallet-list" id="wallet-list"></div>
       <div class="wadd" id="wallet-add"></div>
 
+      <div class="wio-bar">
+        <button class="ghost-btn" id="wallet-export">导出备份</button>
+        <button class="ghost-btn" id="wallet-import">导入备份</button>
+        <input type="file" id="wallet-file" accept="application/json,.json" hidden>
+        <span class="wio-hint">JSON 备份，含用量登记。换设备或清缓存前先导一份。</span>
+      </div>
+      <div id="wallet-io-msg"></div>
+
       <div class="card" style="padding:14px 16px;margin-top:20px;font-size:12px;color:var(--ink-2);line-height:1.65">
         <b>说明：</b>清单记录「哪些平台已开通」，用量靠自己登记（支持 <code>1.5万</code> / <code>200k</code> / <code>3000</code> 这些写法），
         不采集任何 Key、也不调用官方接口。每日刷新型的「今日已用」跨天自动归零，一次性礼包的「已用」累计不清零。
-        所有数据保存在浏览器本地（localStorage），换设备不会同步。
+        所有数据保存在浏览器本地（localStorage），换设备不会自动同步——用上面的「导出备份 / 导入备份」迁移。
         重置时间是按各平台公开的重置节奏推算的估算值，不接入官方接口——所以它是个决策辅助，不是监控系统。
       </div>
     </section>

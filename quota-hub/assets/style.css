@@ -1584,3 +1584,41 @@ kbd,
   border-top: 1px dashed rgba(24, 32, 56, .08);
 }
 .cmdk-tip b { color: var(--ink-2); font-weight: 650; }
+
+/* ============================================================
+   钱包备份（导出 / 导入）
+   ============================================================ */
+.wio-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.wio-bar .ghost-btn { width: auto; padding: 6px 13px; font-size: 11.5px; }
+.wio-hint { font-size: 11px; color: var(--ink-3); }
+
+#wallet-io-msg { margin-top: 12px; }
+
+.wio-msg {
+  padding: 10px 13px; border-radius: var(--r-sm);
+  font-size: 12px; line-height: 1.6;
+}
+.wio-msg.ok   { background: rgba(18, 128, 92, .10); color: #0d6b4c; }
+.wio-msg.err  { background: rgba(184, 52, 44, .10); color: #8a221c; }
+.wio-msg.mute { background: rgba(24, 32, 56, .05);  color: var(--ink-2); }
+
+.wio-card {
+  padding: 14px 16px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  box-shadow: var(--glass-hi), var(--shadow);
+}
+.wio-card > b { font-size: 12.5px; font-weight: 650; }
+.wio-card > p {
+  margin: 7px 0 12px; font-size: 12px; color: var(--ink-2); line-height: 1.7;
+}
+.wio-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wio-actions .ghost-btn,
+.wio-actions .run-btn { width: auto; padding: 7px 14px; font-size: 11.5px; }
