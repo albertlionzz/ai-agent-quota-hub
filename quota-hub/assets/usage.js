@@ -84,6 +84,19 @@ function applyUsage(p, w, raw, now) {
   return next;
 }
 
+/* 钱包结构净化：把 localStorage 里读出来的东西洗成「一定是普通对象」。
+   返回 null 表示整份数据无效（调用方应回退默认值）；返回 {} 表示有效但为空。
+   区分这两者很重要：用户把平台全删了是合法状态，不该被强行塞回默认清单。 */
+function sanitizeWallet(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  Object.keys(v).forEach(id => {
+    const it = v[id];
+    if (it && typeof it === 'object' && !Array.isArray(it)) out[id] = it;
+  });
+  return out;
+}
+
 /* 汇总：区分「可再生」与「一次性余量」。
    关键修正：一次性额度必须扣掉已用，否则「余量」两个字是假的。 */
 function walletTotals(entries, byIdFn, now) {
@@ -107,5 +120,5 @@ function walletTotals(entries, byIdFn, now) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey };
+  module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey, sanitizeWallet };
 }

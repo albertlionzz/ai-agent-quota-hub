@@ -47,12 +47,26 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* 读钱包时必须在类型上把死关。
+     踩过的坑：localStorage 里被写成 `null`（手工改过、或备份替换时半截失败）时，
+     旧版 `if (raw) return JSON.parse(raw)` 会原样返回 null，
+     接着 init 里 Object.keys(null) 抛错 → 整个初始化中断：
+     视图只渲染一半、Ctrl+K 与搜索全失效，而且坏数据还在本地，刷新永远好不了。
+     所以：解析结果必须是普通对象，条目也必须是非数组对象，否则逐个剔除。 */
   function loadWallet() {
+    const fallback = () => JSON.parse(JSON.stringify(DEFAULT_WALLET));
+    let parsed;
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* 忽略损坏数据 */ }
-    return JSON.parse(JSON.stringify(DEFAULT_WALLET));
+      if (!raw) return fallback();
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return fallback();                      /* 解析失败：用默认清单 */
+    }
+    const clean = sanitizeWallet(parsed);
+    /* null = 整份无效（脏数据 / 手改坏了）→ 回退默认值；
+       {} = 有效但为空（用户全删了）→ 尊重这个状态，不塞回默认清单 */
+    return clean === null ? fallback() : clean;
   }
 
   function saveWallet() {
@@ -455,6 +469,12 @@
         state.route[k] = Math.max(1, parseInt(el.value, 10) || 1);
         runRoute();
       });
+      /* 输入 0 / -9 / 空 时内部已夹到 1，但框里仍显示原值——
+         显示值和实际参与计算的值不一致，比直接改掉更让人困惑。
+         所以在失焦时把框同步成真实值；不在每次按键时改，免得和正在输入的数字打架。 */
+      el.addEventListener('change', () => {
+        el.value = state.route[k];
+      });
     });
   }
 
@@ -593,6 +613,10 @@
      ============================================================ */
   function renderWallet() {
     const entries = Object.entries(state.wallet).filter(([id]) => byId(id));
+    /* 角标统一在这里同步：增删/停用/导入都走 renderWallet，
+       之前只在 init 与导入时设置，手工增删后数字会一直是旧的。 */
+    const badge = $('#nav-count-wallet');
+    if (badge) badge.textContent = entries.length;
 
     if (!entries.length) {
       $('#wallet-list').innerHTML = `<div class="empty-state">还没有添加任何平台。</div>`;
@@ -741,7 +765,6 @@
       state.wallet = applyWalletBackup(state.wallet, r.entries, mode);
       saveWallet();
       renderWallet();
-      $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
       walletIoMsg(mode === 'merge'
         ? `已合并：新增 ${d.freshCount} 个平台，原有用量保持不变。`
         : `已用备份替换全部清单，共 ${Object.keys(state.wallet).length} 个平台。`, 'ok');

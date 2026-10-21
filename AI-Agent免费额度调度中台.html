@@ -1696,6 +1696,66 @@ kbd,
   .sch-num { justify-content: flex-start; }
 }
 
+/* 窄屏（360px）下「接入核验」会横向溢出：超长 base_url / env 的 <code>
+   原来是 flex:0 0 auto + 不换行，宽度等于内容宽度，直接把页面撑宽。
+   这里允许它收缩并任意断行。 */
+.valt li code,
+.vretired code,
+.kv code,
+.kv a {
+  min-width: 0;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.valt li code { flex: 0 1 auto; }
+.valt li { align-items: flex-start; }
+
+/* ============================================================
+   卡片内标题（.card-head）
+   ------------------------------------------------------------
+   这个类在模板里用了 11 处，却一直没有样式定义。结果是：
+     · <h2> 吃浏览器默认 21px（其余标题都是 14.5px）
+     · 全局 `* { margin: 0 }` 把 h2 与 p 之间的间距也清零，行贴行
+     · 左右贴卡片边缘，而下面的 kind-grid / path-list 有 20px 内边距，标题与内容对不齐
+   一并补齐；同时给「自身没有内边距」的后续容器补左右内边距。
+   ============================================================ */
+.card-head { padding: 18px 20px 0; }
+.card-head h2 {
+  font-size: 14.5px; font-weight: 650; letter-spacing: -.2px; color: var(--ink);
+}
+.card-head p {
+  margin-top: 7px; font-size: 12px; color: var(--ink-2); line-height: 1.72;
+}
+.card-head p b { color: var(--ink); font-weight: 650; }
+
+.card > .card-head + .kpi-grid,
+.card > .card-head + .filters,
+.card > .card-head + .export-row,
+.card > .card-head + .vlist,
+.card > .card-head + .filters + .vlist,
+.card > .card-head + #acc-agents,
+.card > .card-head + #acc-plat,
+.card > .card-head + #verify-conflicts,
+.card > .card-head + #verify-retired {
+  padding-left: 20px; padding-right: 20px;
+}
+.card > .card-head + *:last-child { padding-bottom: 18px; }
+
+@media (max-width: 640px) {
+  .card-head { padding: 15px 14px 0; }
+  .card > .card-head + .kpi-grid,
+  .card > .card-head + .filters,
+  .card > .card-head + .export-row,
+  .card > .card-head + .vlist,
+  .card > .card-head + .filters + .vlist,
+  .card > .card-head + #acc-agents,
+  .card > .card-head + #acc-plat,
+  .card > .card-head + #verify-conflicts,
+  .card > .card-head + #verify-retired {
+    padding-left: 14px; padding-right: 14px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -3060,12 +3120,26 @@ const DEFAULT_WALLET = {
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* 读钱包时必须在类型上把死关。
+     踩过的坑：localStorage 里被写成 `null`（手工改过、或备份替换时半截失败）时，
+     旧版 `if (raw) return JSON.parse(raw)` 会原样返回 null，
+     接着 init 里 Object.keys(null) 抛错 → 整个初始化中断：
+     视图只渲染一半、Ctrl+K 与搜索全失效，而且坏数据还在本地，刷新永远好不了。
+     所以：解析结果必须是普通对象，条目也必须是非数组对象，否则逐个剔除。 */
   function loadWallet() {
+    const fallback = () => JSON.parse(JSON.stringify(DEFAULT_WALLET));
+    let parsed;
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* 忽略损坏数据 */ }
-    return JSON.parse(JSON.stringify(DEFAULT_WALLET));
+      if (!raw) return fallback();
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return fallback();                      /* 解析失败：用默认清单 */
+    }
+    const clean = sanitizeWallet(parsed);
+    /* null = 整份无效（脏数据 / 手改坏了）→ 回退默认值；
+       {} = 有效但为空（用户全删了）→ 尊重这个状态，不塞回默认清单 */
+    return clean === null ? fallback() : clean;
   }
 
   function saveWallet() {
@@ -3468,6 +3542,12 @@ const DEFAULT_WALLET = {
         state.route[k] = Math.max(1, parseInt(el.value, 10) || 1);
         runRoute();
       });
+      /* 输入 0 / -9 / 空 时内部已夹到 1，但框里仍显示原值——
+         显示值和实际参与计算的值不一致，比直接改掉更让人困惑。
+         所以在失焦时把框同步成真实值；不在每次按键时改，免得和正在输入的数字打架。 */
+      el.addEventListener('change', () => {
+        el.value = state.route[k];
+      });
     });
   }
 
@@ -3606,6 +3686,10 @@ const DEFAULT_WALLET = {
      ============================================================ */
   function renderWallet() {
     const entries = Object.entries(state.wallet).filter(([id]) => byId(id));
+    /* 角标统一在这里同步：增删/停用/导入都走 renderWallet，
+       之前只在 init 与导入时设置，手工增删后数字会一直是旧的。 */
+    const badge = $('#nav-count-wallet');
+    if (badge) badge.textContent = entries.length;
 
     if (!entries.length) {
       $('#wallet-list').innerHTML = `<div class="empty-state">还没有添加任何平台。</div>`;
@@ -3754,7 +3838,6 @@ const DEFAULT_WALLET = {
       state.wallet = applyWalletBackup(state.wallet, r.entries, mode);
       saveWallet();
       renderWallet();
-      $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
       walletIoMsg(mode === 'merge'
         ? `已合并：新增 ${d.freshCount} 个平台，原有用量保持不变。`
         : `已用备份替换全部清单，共 ${Object.keys(state.wallet).length} 个平台。`, 'ok');
@@ -3986,6 +4069,19 @@ function applyUsage(p, w, raw, now) {
   return next;
 }
 
+/* 钱包结构净化：把 localStorage 里读出来的东西洗成「一定是普通对象」。
+   返回 null 表示整份数据无效（调用方应回退默认值）；返回 {} 表示有效但为空。
+   区分这两者很重要：用户把平台全删了是合法状态，不该被强行塞回默认清单。 */
+function sanitizeWallet(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out = {};
+  Object.keys(v).forEach(id => {
+    const it = v[id];
+    if (it && typeof it === 'object' && !Array.isArray(it)) out[id] = it;
+  });
+  return out;
+}
+
 /* 汇总：区分「可再生」与「一次性余量」。
    关键修正：一次性额度必须扣掉已用，否则「余量」两个字是假的。 */
 function walletTotals(entries, byIdFn, now) {
@@ -4009,7 +4105,7 @@ function walletTotals(entries, byIdFn, now) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey };
+  module.exports = { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey, sanitizeWallet };
 }
 
 

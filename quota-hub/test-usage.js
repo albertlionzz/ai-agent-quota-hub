@@ -1,6 +1,6 @@
 /* 用量登记纯函数单测：直接 require 真实源码，不复制逻辑 */
 const assert = require('assert');
-const { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey } = require('./assets/usage.js');
+const { parseTok, fmtTok, usageOf, applyUsage, walletTotals, todayKey, sanitizeWallet } = require('./assets/usage.js');
 
 let pass = 0, fail = 0;
 function ok(name, fn) {
@@ -94,6 +94,28 @@ ok('不改入参对象', () => {
   const w = { used: 10 };
   applyUsage({ quotaType: 'gift', tokensTotal: 1000 }, w, '20', NOW);
   eq(w.used, 10);
+});
+
+/* ---------- sanitizeWallet（localStorage 脏数据） ---------- */
+/* 这是一次真实事故的回归：钱包被写成 null 时，旧代码原样返回 null，
+   init 里 Object.keys(null) 抛错 → 视图半渲染、Ctrl+K 全失效、刷新也修不好。 */
+ok('null 判为整份无效', () => eq(sanitizeWallet(null), null));
+ok('数组判为整份无效', () => eq(sanitizeWallet([1, 2]), null));
+ok('字符串判为整份无效', () => eq(sanitizeWallet('abc'), null));
+ok('数字判为整份无效', () => eq(sanitizeWallet(42), null));
+ok('空对象是合法的空钱包，不是无效', () => eq(sanitizeWallet({}), {}));
+ok('剔除 null / 数组 / 数字条目', () => {
+  eq(sanitizeWallet({ zhipu: null, volc: [1], gemini: 5, openrouter: { used: 1 } }),
+     { openrouter: { used: 1 } });
+});
+ok('保留正常条目原样', () => {
+  const w = { zhipu: { enabled: true, used: 3000, usedDate: '2026-10-22' } };
+  eq(sanitizeWallet(w), w);
+});
+ok('不修改入参', () => {
+  const w = { zhipu: { used: 1 }, volc: null };
+  sanitizeWallet(w);
+  assert.strictEqual('volc' in w, true);
 });
 
 /* ---------- walletTotals ---------- */

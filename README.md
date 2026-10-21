@@ -63,7 +63,7 @@ node test-export.js      # 导出脚本语法与要素
 node test-orch.js        # 总控 121 项断言
 node test-access.js      # 网关配置：真实 YAML 解析 + Python 编译（32 项）
 node test-verify.js      # 接入核验 28 项：含「核验表 base 与端点表逐字一致」
-node test-usage.js       # 用量登记纯函数 40 项（解析 1.5万/200k、跨天归零、超额夹取）
+node test-usage.js       # 用量登记纯函数 48 项（解析 1.5万/200k、跨天归零、脏数据净化）
 node test-palette.js     # 全局跳转 14 项：含「kimi 不能拖出 DeepSeek」假阳性回归
 node test-walletio.js    # 备份导入 22 项：坏输入全拒、脏字段清洗、合并语义
 node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 点倒计时边界

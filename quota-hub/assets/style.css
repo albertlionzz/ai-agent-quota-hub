@@ -1688,3 +1688,63 @@ kbd,
   .sch-row { grid-template-columns: 1fr; gap: 8px; }
   .sch-num { justify-content: flex-start; }
 }
+
+/* 窄屏（360px）下「接入核验」会横向溢出：超长 base_url / env 的 <code>
+   原来是 flex:0 0 auto + 不换行，宽度等于内容宽度，直接把页面撑宽。
+   这里允许它收缩并任意断行。 */
+.valt li code,
+.vretired code,
+.kv code,
+.kv a {
+  min-width: 0;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.valt li code { flex: 0 1 auto; }
+.valt li { align-items: flex-start; }
+
+/* ============================================================
+   卡片内标题（.card-head）
+   ------------------------------------------------------------
+   这个类在模板里用了 11 处，却一直没有样式定义。结果是：
+     · <h2> 吃浏览器默认 21px（其余标题都是 14.5px）
+     · 全局 `* { margin: 0 }` 把 h2 与 p 之间的间距也清零，行贴行
+     · 左右贴卡片边缘，而下面的 kind-grid / path-list 有 20px 内边距，标题与内容对不齐
+   一并补齐；同时给「自身没有内边距」的后续容器补左右内边距。
+   ============================================================ */
+.card-head { padding: 18px 20px 0; }
+.card-head h2 {
+  font-size: 14.5px; font-weight: 650; letter-spacing: -.2px; color: var(--ink);
+}
+.card-head p {
+  margin-top: 7px; font-size: 12px; color: var(--ink-2); line-height: 1.72;
+}
+.card-head p b { color: var(--ink); font-weight: 650; }
+
+.card > .card-head + .kpi-grid,
+.card > .card-head + .filters,
+.card > .card-head + .export-row,
+.card > .card-head + .vlist,
+.card > .card-head + .filters + .vlist,
+.card > .card-head + #acc-agents,
+.card > .card-head + #acc-plat,
+.card > .card-head + #verify-conflicts,
+.card > .card-head + #verify-retired {
+  padding-left: 20px; padding-right: 20px;
+}
+.card > .card-head + *:last-child { padding-bottom: 18px; }
+
+@media (max-width: 640px) {
+  .card-head { padding: 15px 14px 0; }
+  .card > .card-head + .kpi-grid,
+  .card > .card-head + .filters,
+  .card > .card-head + .export-row,
+  .card > .card-head + .vlist,
+  .card > .card-head + .filters + .vlist,
+  .card > .card-head + #acc-agents,
+  .card > .card-head + #acc-plat,
+  .card > .card-head + #verify-conflicts,
+  .card > .card-head + #verify-retired {
+    padding-left: 14px; padding-right: 14px;
+  }
+}
