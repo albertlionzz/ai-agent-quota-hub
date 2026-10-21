@@ -20,18 +20,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    # Pages 站点必须先由仓库管理员开启一次。GITHUB_TOKEN 建不了站点
+    # （Create a Pages site 需要 admin 权限，会返回 Resource not accessible by integration），
+    # 所以这里只检测、不硬试，未开启时给出明确提示并跳过后续发布，不让流水线红着。
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check Pages is enabled
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
+          if [ "$code" = "200" ]; then
+            echo "Pages 已开启，继续发布。"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Pages 尚未开启::到 Settings → Pages → Build and deployment → Source 选择「GitHub Actions」并保存，然后重新运行本工作流即可发布。当前 HTTP $code"
+          fi
+
   build:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # enablement: true 会在仓库尚未开启 Pages 时自动创建站点，
-      # 否则首次运行会以 "Get Pages site failed" 失败，需要人工去 Settings 点一遍。
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Assemble site
         run: |
@@ -52,7 +75,8 @@ jobs:
           path: _site
 
   deploy:
-    needs: build
+    needs: [preflight, build]
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
