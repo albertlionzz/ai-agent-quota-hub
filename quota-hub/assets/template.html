@@ -356,6 +356,59 @@
 
     <!-- ---------- 接入通道 ---------- -->
     <section class="view" id="view-access">
+
+      <!-- 接入向导：两个问题 → 一个答案，先把环节压掉 -->
+      <div class="card ob-card">
+        <div class="card-head">
+          <h2>先说结论：你该走哪条路</h2>
+          <p>两个问题，直接给一条路和最多三步。下面那些矩阵式的内容是兜底参考——拿到答案就不用往下看了。</p>
+        </div>
+        <div class="ob-body">
+          <div class="ob-q">
+            <span class="ob-qlabel">1 · 你要用它做什么</span>
+            <div class="ob-opts" id="ob-goals"></div>
+          </div>
+          <div class="ob-q">
+            <span class="ob-qlabel">2 · 你愿意碰命令行吗</span>
+            <div class="ob-opts" id="ob-comforts"></div>
+          </div>
+          <div class="ob-result" id="ob-result"></div>
+        </div>
+      </div>
+
+      <!-- 一键配置：粘贴 key 出命令 -->
+      <div class="card ob-card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>粘贴 key，一次配好</h2>
+          <p>把「查 base_url → 查环境变量名 → 写 .env → 测通」这四步合成一段可粘贴的命令。自检用 GET /models，不消耗 token、不占生成额度。</p>
+        </div>
+        <div class="ob-body">
+          <div class="ob-form">
+            <div class="ob-field">
+              <i>平台</i>
+              <select id="ob-vendor"></select>
+            </div>
+            <div class="ob-field ob-field-wide">
+              <i>API key</i>
+              <input id="ob-key" type="password" autocomplete="off" spellcheck="false"
+                     placeholder="粘贴后立即生成命令，不会保存、不会上传">
+            </div>
+            <div class="ob-field">
+              <i>终端</i>
+              <div class="ob-shell" id="ob-shell"></div>
+            </div>
+            <button class="run-btn" id="ob-gen" style="width:auto;padding:8px 18px">生成命令</button>
+          </div>
+          <div id="ob-out"></div>
+          <p class="ob-note">
+            key 只在这个页面参与拼字符串：不写入 localStorage、不发任何网络请求、刷新即消失。
+            生成的命令会写进 <code class="mono">~/.config/quota-hub/&lt;平台&gt;.env</code>，重复执行只覆盖不追加。
+            PowerShell 版脚本内容为英文——Windows PowerShell 5.1 读无 BOM 的 UTF-8 会把中文读坏，可能连带把引号吃掉导致报错。
+          </p>
+        </div>
+      </div>
+
+
       <div class="card">
         <div class="card-head">
           <h2>三类额度互不通用</h2>

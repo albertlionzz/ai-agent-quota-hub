@@ -1748,3 +1748,121 @@ kbd,
     padding-left: 14px; padding-right: 14px;
   }
 }
+
+/* ============================================================
+   接入向导 / 一键配置（access 视图顶部）
+   ============================================================ */
+.ob-body { padding: 14px 20px 18px; }
+
+.ob-q { margin-bottom: 14px; }
+.ob-qlabel {
+  display: block; margin-bottom: 7px;
+  font-size: 10.5px; font-weight: 650; letter-spacing: .04em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.ob-opts { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.ob-chip {
+  padding: 7px 13px; border-radius: 8px;
+  font-family: var(--sans); font-size: 12px; color: var(--ink-2);
+  background: rgba(255, 255, 255, .58);
+  border: 1px solid rgba(24, 32, 56, .10);
+  cursor: pointer; transition: all .14s;
+}
+.ob-chip:hover { border-color: rgba(47, 95, 224, .34); color: var(--ink); }
+.ob-chip.on {
+  background: rgba(47, 95, 224, .13);
+  border-color: rgba(47, 95, 224, .45);
+  color: var(--accent); font-weight: 600;
+}
+
+.ob-rec {
+  margin-top: 4px; padding: 14px 16px;
+  border-radius: var(--r);
+  background: linear-gradient(180deg, rgba(47, 95, 224, .07), rgba(47, 95, 224, .02));
+  border: 1px solid rgba(47, 95, 224, .18);
+}
+.ob-rechead { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.ob-rechead b { font-size: 13.5px; font-weight: 650; letter-spacing: -.2px; }
+.ob-badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em;
+  padding: 2px 7px; border-radius: 5px;
+  background: var(--accent); color: #fff;
+}
+.ob-min { margin-left: auto; font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+
+.ob-why { margin-top: 8px; font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+.ob-steps {
+  margin: 10px 0 0; padding-left: 18px;
+  font-size: 12px; color: var(--ink-2); line-height: 1.8;
+}
+.ob-steps li { margin-bottom: 3px; }
+.ob-steps li::marker { color: var(--accent); font-weight: 600; }
+.ob-caveat {
+  margin-top: 10px; padding-top: 9px;
+  border-top: 1px dashed rgba(47, 95, 224, .22);
+  font-size: 11.5px; color: var(--ink-3); line-height: 1.65;
+}
+.ob-caveat b {
+  display: inline-block; margin-right: 6px;
+  font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--amber);
+}
+
+/* 表单 */
+.ob-form {
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+}
+.ob-field { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
+.ob-field-wide { flex: 1 1 260px; }
+.ob-field > i {
+  font-style: normal; font-size: 10px; font-weight: 650;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3);
+}
+.ob-form select, .ob-form input {
+  width: 100%; padding: 7px 10px; font-size: 12px;
+  font-family: var(--sans); color: var(--ink);
+}
+.ob-form input { font-family: var(--mono); }
+.ob-shell { display: flex; gap: 6px; }
+
+/* 生成的代码块 */
+.ob-out { margin-top: 14px; }
+.ob-outhead {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.ob-outhead b { font-size: 11.5px; font-weight: 650; color: var(--ink-2); }
+.ob-outhead .ghost-btn { width: auto; padding: 4px 11px; font-size: 11px; }
+.ob-warn {
+  font-size: 10.5px; color: var(--amber);
+  background: var(--amber-soft); padding: 2px 7px; border-radius: 5px;
+}
+
+.ob-code {
+  margin: 0; padding: 12px 14px;
+  background: rgba(24, 32, 56, .055);
+  border: 1px solid rgba(24, 32, 56, .08);
+  border-radius: var(--r-sm);
+  overflow-x: auto; max-height: 340px; overflow-y: auto;
+}
+.ob-code code {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
+  color: var(--ink); white-space: pre;
+}
+
+.ob-note {
+  margin-top: 12px; font-size: 11px; color: var(--ink-3); line-height: 1.75;
+}
+.ob-note code {
+  font-family: var(--mono); font-size: 10.5px;
+  background: rgba(24, 32, 56, .06); padding: 1px 5px; border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .ob-body { padding: 12px 14px 16px; }
+  .ob-min { margin-left: 0; width: 100%; }
+  .ob-form { gap: 10px; }
+  .ob-field { min-width: 100%; }
+  .ob-code { max-height: 260px; }
+}

@@ -530,6 +530,9 @@ if __name__ == "__main__":
    视图：接入通道
    ============================================================ */
 function renderAccess() {
+  /* 向导与一键配置：先给答案，再给矩阵（onboard.js） */
+  renderOnboard();
+
   /* —— 三类额度的边界 —— */
   $('#acc-kinds').innerHTML = Object.entries(QUOTA_KINDS).map(([k, v]) => `
     <div class="kind-card ${k}">

@@ -36,7 +36,7 @@
 | 能力画像 | 12 模型 × 9 维得分，每条挂评测来源与可信度分级 |
 | 我的额度 | 已开通清单、用量登记（算得出真实余量）、JSON 备份导出/导入 |
 | 重置日程 | 今天哪些额度会刷新、哪些只减不增、哪些周期未公示 |
-| 接入通道 | 三类额度、五条接入路径、LiteLLM 网关配置生成 |
+| 接入通道 | 两个问题给一条路（向导）、粘贴 key 生成配置命令、三类额度、五条路径、LiteLLM 网关配置 |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自检脚本导出 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
 
@@ -51,7 +51,7 @@ cd quota-hub
 python build.py          # 产出 ../AI-Agent免费额度调度中台.html
 ```
 
-`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → WALLETIO → SCHEDULE → CAP → PIPE → ORCH → ACCESS → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
+`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → WALLETIO → SCHEDULE → ONBOARD → CAP → PIPE → ORCH → ACCESS → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
 
 ## 测试
 
@@ -67,6 +67,7 @@ node test-usage.js       # 用量登记纯函数 48 项（解析 1.5万/200k、�
 node test-palette.js     # 全局跳转 14 项：含「kimi 不能拖出 DeepSeek」假阳性回归
 node test-walletio.js    # 备份导入 22 项：坏输入全拒、脏字段清洗、合并语义
 node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 点倒计时边界
+node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本过 bash -n 与 PS 解析器
 ```
 
 `test-verify.js` 里最有用的一条断言：核验表里的 `base_url` 必须与端点表 `PIPE_BASE` 完全一致 —— 防止只改一处。
@@ -96,6 +97,7 @@ quota-hub/
     usage.js               用量登记纯函数（解析 / 余量 / 跨天归零）
     walletio.js            备份导出/导入与校验
     schedule.js            重置日程分桶
+    onboard.js             接入向导与配置脚本生成
     palette.js             Ctrl+K 全局跳转
 ```
 
