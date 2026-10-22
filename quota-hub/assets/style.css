@@ -1866,3 +1866,29 @@ kbd,
   .ob-field { min-width: 100%; }
   .ob-code { max-height: 260px; }
 }
+
+/* 浏览器内验活结果 */
+.ob-vr {
+  margin-top: 12px; padding: 10px 13px; border-radius: var(--r-sm);
+  font-size: 12px; line-height: 1.65;
+}
+.ob-vr b { font-family: var(--mono); margin-right: 6px; }
+.ob-vr.ok   { background: rgba(18, 128, 92, .10); color: #0d6b4c; }
+.ob-vr.warn { background: rgba(154, 101, 18, .10); color: #7a4f0d; }
+.ob-vr.err  { background: rgba(184, 52, 44, .10); color: #8a221c; }
+.ob-vr.mute { background: rgba(24, 32, 56, .05);  color: var(--ink-2); }
+.ob-vr-key {
+  float: right; font-family: var(--mono); font-size: 10.5px;
+  opacity: .72; letter-spacing: .02em;
+}
+.ob-vr-raw { margin-top: 8px; }
+.ob-vr-raw summary {
+  cursor: pointer; font-size: 10.5px; opacity: .8;
+}
+.ob-vr-raw pre {
+  margin: 6px 0 0; padding: 9px 11px; max-height: 180px; overflow: auto;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+  background: rgba(255, 255, 255, .55); border-radius: 6px;
+  white-space: pre-wrap; word-break: break-all;
+}
+#ob-verify:disabled { opacity: .55; cursor: progress; }

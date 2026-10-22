@@ -16,10 +16,11 @@ const box = {};
 new Function('box', read('onboard.js') + `
   ;Object.assign(box, { ONBOARD_GOALS, ONBOARD_COMFORT, recommendAccess,
                         buildVendorEnvScript, buildGatewayScript, vendorAuthMode,
-                        probeTarget, shq, psq });`)(box);
+                        probeTarget, shq, psq, interpretProbe, maskKey, CORS_HINT });`)(box);
 
 const { ONBOARD_GOALS, ONBOARD_COMFORT, recommendAccess,
-        buildVendorEnvScript, buildGatewayScript, vendorAuthMode, shq, psq } = box;
+        buildVendorEnvScript, buildGatewayScript, vendorAuthMode, shq, psq,
+        interpretProbe, maskKey, CORS_HINT } = box;
 
 let pass = 0, fail = 0;
 function ok(name, fn) {
@@ -120,6 +121,75 @@ ok('23 家厂商都能生成脚本（无异常、无 undefined）', () => {
       assert.ok(!/undefined/.test(s), `${v.id}/${sh} 出现 undefined`);
     });
   });
+});
+
+/* ---------------- 浏览器验活：状态码解读 ---------------- */
+ok('200 且返回 data 数组 → 报出模型数', () => {
+  const r = interpretProbe(200, JSON.stringify({ data: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] }));
+  assert.strictEqual(r.tone, 'ok');
+  assert.ok(/3 个/.test(r.text), r.text);
+});
+ok('200 且返回 models 数组（Gemini 风格）也认', () => {
+  const r = interpretProbe(200, JSON.stringify({ models: [{}, {}] }));
+  assert.ok(/2 个/.test(r.text), r.text);
+});
+ok('200 但不是 JSON 也不炸，只说通了', () => {
+  const r = interpretProbe(200, '<html>ok</html>');
+  assert.strictEqual(r.tone, 'ok');
+  assert.ok(/通了/.test(r.text));
+});
+ok('401 → 明确指向 key 本身', () => {
+  const r = interpretProbe(401, JSON.stringify({ error: { code: '401', message: '令牌已过期或验证不正确' } }));
+  assert.strictEqual(r.tone, 'err');
+  assert.ok(/key 无效|过期/.test(r.text), r.text);
+});
+ok('403 → 提示未必是 key 的问题', () => {
+  const r = interpretProbe(403, '{}');
+  assert.strictEqual(r.tone, 'warn');
+  assert.ok(/没开通|地域|白名单/.test(r.text), r.text);
+});
+ok('404 → 指向 base_url', () => {
+  const r = interpretProbe(404, '');
+  assert.strictEqual(r.tone, 'err');
+  assert.ok(/base_url/.test(r.text));
+});
+ok('429 → 说明 key 是通的', () => {
+  const r = interpretProbe(429, '');
+  assert.strictEqual(r.tone, 'warn');
+  assert.ok(/key 是通的/.test(r.text));
+});
+ok('5xx → 不赖用户', () => {
+  const r = interpretProbe(503, '');
+  assert.strictEqual(r.tone, 'warn');
+  assert.ok(/不代表你的 key 有问题/.test(r.text));
+});
+ok('未知状态码不崩', () => {
+  [0, 302, 418, 599].forEach(s => {
+    assert.strictEqual(typeof interpretProbe(s, '').text, 'string');
+  });
+});
+
+/* ---------------- 脱敏 ---------------- */
+ok('maskKey 只露首尾四位', () => {
+  assert.strictEqual(maskKey('sk-abcdefghijklmn'), 'sk-a****klmn');
+});
+ok('maskKey 短 key 全遮', () => {
+  assert.strictEqual(maskKey('12345678'), '****');
+  assert.strictEqual(maskKey(''), '');
+});
+ok('maskKey 不会把整串吐出来', () => {
+  const k = 'sk-1234567890abcdef1234';
+  assert.ok(!maskKey(k).includes('567890'));
+});
+
+/* ---------------- 白名单是「实测允许跨域」的提示，不是结论 ---------------- */
+ok('跨域提示表里都是真实存在的厂商 id', () => {
+  CORS_HINT.forEach(id => {
+    assert.ok(VENDOR_ACCESS.some(v => v.id === id), id + ' 不在厂商表里');
+  });
+});
+ok('智谱在跨域提示表里（实测 Access-Control-Allow-Origin 有返回）', () => {
+  assert.ok(CORS_HINT.includes('zhipu'));
 });
 
 /* ---------------- 真语法检查 ---------------- */

@@ -1874,6 +1874,32 @@ kbd,
   .ob-code { max-height: 260px; }
 }
 
+/* 浏览器内验活结果 */
+.ob-vr {
+  margin-top: 12px; padding: 10px 13px; border-radius: var(--r-sm);
+  font-size: 12px; line-height: 1.65;
+}
+.ob-vr b { font-family: var(--mono); margin-right: 6px; }
+.ob-vr.ok   { background: rgba(18, 128, 92, .10); color: #0d6b4c; }
+.ob-vr.warn { background: rgba(154, 101, 18, .10); color: #7a4f0d; }
+.ob-vr.err  { background: rgba(184, 52, 44, .10); color: #8a221c; }
+.ob-vr.mute { background: rgba(24, 32, 56, .05);  color: var(--ink-2); }
+.ob-vr-key {
+  float: right; font-family: var(--mono); font-size: 10.5px;
+  opacity: .72; letter-spacing: .02em;
+}
+.ob-vr-raw { margin-top: 8px; }
+.ob-vr-raw summary {
+  cursor: pointer; font-size: 10.5px; opacity: .8;
+}
+.ob-vr-raw pre {
+  margin: 6px 0 0; padding: 9px 11px; max-height: 180px; overflow: auto;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+  background: rgba(255, 255, 255, .55); border-radius: 6px;
+  white-space: pre-wrap; word-break: break-all;
+}
+#ob-verify:disabled { opacity: .55; cursor: progress; }
+
 </style>
 </head>
 <body>
@@ -2266,7 +2292,9 @@ kbd,
               <div class="ob-shell" id="ob-shell"></div>
             </div>
             <button class="run-btn" id="ob-gen" style="width:auto;padding:8px 18px">生成命令</button>
+            <button class="ghost-btn" id="ob-verify" style="width:auto;padding:8px 16px">立即验证 key</button>
           </div>
+          <div id="ob-vres"></div>
           <div id="ob-out"></div>
           <p class="ob-note">
             key 只在这个页面参与拼字符串：不写入 localStorage、不发任何网络请求、刷新即消失。
@@ -4650,6 +4678,54 @@ function recommendCommand(rec) {
   return '';
 }
 
+/* ---------------- 浏览器内直接验活 ----------------
+
+   为什么值得做：GET /models 是零消耗的探针，能立刻回答「key 到底通不通」。
+   但浏览器发请求要过 CORS。实测（2026-10-22，带 Origin: null + 假 key）：
+
+     允许跨域（能直接在页面里验）：zhipu / deepseek / moonshot / minimax /
+       bailian / hunyuan / qianfan / longcat / openrouter
+     不允许（只能下载脚本验）：volc / spark / groq / siliconflow / sensenova …
+     沙箱网络不通、无法判断：openai / gemini / xai / mistral（这几家在你本机可能反而通）
+
+   所以这里不做「是否显示按钮」的白名单——那等于替用户下结论。
+   一律给按钮，失败时按原因分流：真拿到了 HTTP 状态码就解读状态码，
+   抛异常（跨域/断网）就老老实实说「浏览器这边问不出来，用脚本」。
+
+   返回给 UI 的是 { tone, text }，纯函数，便于单测。 */
+const CORS_HINT = ['zhipu', 'deepseek', 'moonshot', 'minimax', 'bailian', 'hunyuan', 'qianfan', 'longcat', 'openrouter'];
+
+function interpretProbe(status, body) {
+  const txt = String(body || '');
+  let models = null;
+  try {
+    const j = JSON.parse(txt);
+    if (Array.isArray(j.data)) models = j.data.length;
+    else if (Array.isArray(j.models)) models = j.models.length;
+  } catch (e) { /* 非 JSON 就不数模型 */ }
+
+  if (status === 200) {
+    return {
+      tone: 'ok',
+      text: models === null ? '通了（HTTP 200）。' : `通了，可用模型 ${models} 个。`
+    };
+  }
+  if (status === 401) return { tone: 'err', text: 'key 无效、已过期，或复制时少了字符。' };
+  if (status === 403) return { tone: 'warn', text: 'key 本身多半没问题，但没开通这个模型 / 地域不对 / IP 不在白名单。' };
+  if (status === 404) return { tone: 'err', text: 'base_url 写错了，跟 key 无关。' };
+  if (status === 429) return { tone: 'warn', text: 'key 是通的，只是被限速或额度用完了。' };
+  if (status >= 500) return { tone: 'warn', text: '对方服务端出错，过会儿再试——这不代表你的 key 有问题。' };
+  return { tone: 'warn', text: '没见过的返回，先看下面的原始信息。' };
+}
+
+function maskKey(k) {
+  const s = String(k || '');
+  if (s.length <= 8) return s ? '****' : '';
+  return s.slice(0, 4) + '****' + s.slice(-4);
+}
+
+
+
 /* ============================================================
    渲染：接入向导 + 一键配置
    （供 access.js 的 renderAccess 调用）
@@ -4749,6 +4825,49 @@ function renderOnboard() {
       $$('[data-ob-shell]').forEach(x => x.classList.toggle('on', x === b));
       renderObResult();
     }));
+  }
+
+  /* 立即验证：能拿到状态码就解读状态码，拿不到就如实说浏览器问不出来 */
+  const vbtn = $('#ob-verify');
+  if (vbtn && !vbtn.dataset.ready) {
+    vbtn.dataset.ready = '1';
+    vbtn.addEventListener('click', () => {
+      const v = obVendors().find(x => x.id === OB_STATE.vendor);
+      const keyEl = $('#ob-key');
+      const key = (keyEl && keyEl.value || '').trim();
+      const box = $('#ob-vres');
+      if (!box || !v) return;
+
+      if (!key) { box.innerHTML = `<div class="ob-vr warn">先在上面粘贴 key，再点验证。</div>`; return; }
+      if (!v.base) { box.innerHTML = `<div class="ob-vr warn">${esc(v.name)} 没有固定端点，端点取决于你选的推理服务商，无法直接验证。</div>`; return; }
+
+      const t = probeTarget(v);
+      const mode = vendorAuthMode(v);
+      const headers = (mode === 'anthropic')
+        ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+        : { Authorization: 'Bearer ' + key };
+
+      box.innerHTML = `<div class="ob-vr mute">正在请求 <code class="mono">${esc(t.url)}</code> …</div>`;
+      vbtn.disabled = true;
+
+      fetch(t.url, { method: 'GET', headers, mode: 'cors' })
+        .then(r => r.text().then(body => ({ status: r.status, body })))
+        .then(({ status, body }) => {
+          const d = interpretProbe(status, body);
+          box.innerHTML = `<div class="ob-vr ${d.tone}">
+              <b>${status}</b> ${esc(d.text)}
+              <span class="ob-vr-key">${esc(maskKey(key))}</span>
+            </div>` + (status === 200 ? '' :
+            `<details class="ob-vr-raw"><summary>原始返回（前 600 字）</summary><pre>${esc(body.slice(0, 600))}</pre></details>`);
+        })
+        .catch(() => {
+          const hint = CORS_HINT.indexOf(v.id) >= 0
+            ? '这家实测允许浏览器跨域，出现这个通常是网络/代理问题，或者 key 里混进了空格。'
+            : '这家大概率不允许浏览器跨域（CORS），浏览器问不出来。请用下面生成的脚本在本机跑，或直接 curl。';
+          box.innerHTML = `<div class="ob-vr warn"><b>浏览器这边问不出来</b>${esc(hint)}</div>`;
+        })
+        .then(() => { vbtn.disabled = false; });
+    });
   }
 
   /* 生成命令 */
