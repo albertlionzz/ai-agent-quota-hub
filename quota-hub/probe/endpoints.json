@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedFrom": "assets/verify.js#VENDOR_ACCESS",
-  "sourceHash": "a54f5ac4c473cc44",
+  "sourceHash": "40c1eca520abe0b7",
   "count": 22,
   "skipped": [
     {
@@ -45,8 +45,8 @@
       "region": "global",
       "env": "GEMINI_API_KEY",
       "base": "https://generativelanguage.googleapis.com/v1beta/openai",
-      "probeBase": null,
-      "probePath": null,
+      "probeBase": "https://generativelanguage.googleapis.com/v1beta",
+      "probePath": "/models",
       "probe": "models",
       "path": "/models",
       "model": null

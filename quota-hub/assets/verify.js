@@ -71,6 +71,10 @@ const VENDOR_ACCESS = [
     id: 'gemini', name: 'Google Gemini', vendor: 'Google', region: 'global', tier: 1,
     console: 'https://aistudio.google.com/apikey',
     base: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    /* Gemini 的 OpenAI 兼容层没实现 GET /models（返回 404 Requested entity was not found），
+       探活要走原生的 /v1beta/models，那边才会回 403 要 key。 */
+    probeBase: 'https://generativelanguage.googleapis.com/v1beta',
+    probePath: '/models',
     alt: [{ url: 'https://generativelanguage.googleapis.com/v1beta', note: '原生端点，配合 google-genai SDK 用' }],
     env: 'GEMINI_API_KEY', keyPrefix: 'AIza',
     models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemma-4-31b-it'],

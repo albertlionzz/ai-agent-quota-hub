@@ -81,7 +81,7 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 - **401 不报警**。把「没配 key」当成故障，会让这个看板永远一片红，最后没人看。
 - **403 和 401 分开**。401 是「没出示证件」，403 是「出示了也不让进」，合并会让人白白去换 key。
 - **代理的 502 归到 unreachable**。企业网关连不上上游时常回 502 + `connect failed`，那是网络问题，不是对方服务端挂了。
-- **海外 runner 的结论有边界**。Actions 是美国机器，境内平台在那边慢或被拦会显示「未连通」，页面里直接写明这一点，并给出本地跑法。
+- **执行环境决定结论，而且两个方向都会失真**。首轮实测：本机（境内网络）有 4 家「未连通」（OpenAI / Gemini / xAI / Mistral），而 GitHub 海外 runner 一家都没断路、17 家回 401——所以「未连通」说的是这台机器到不了，不是平台挂了。页面里把执行环境标出来，就是为了让人知道该信哪一半。
 
 想加 key 让探活变成真验证：仓库 Settings → Secrets and variables → Actions，按 `probe/endpoints.json` 里的 `env` 字段建同名 secret（如 `ZHIPUAI_API_KEY`）。没建的会按「无 key」处理，不会报错。
 

@@ -50,6 +50,8 @@ ROUTES = {
     '/nf/models': (404, {'error': 'no route matched with those values'}),
     '/boom/models': (500, {'error': 'internal'}),
     '/empty/models': (200, {}),
+    '/gk/models': (403, {'error': {'message': 'The request is missing a valid API key.'}}),
+    '/deny/models': (403, {'error': 'Access denied.'}),
     '/chat/chat/completions': (200, {'choices': []}),
 }
 
@@ -112,6 +114,9 @@ T('404 归 notfound 并带出原文', lambda: (lambda r: (eq(r['status'], 'notfo
 T('500 归 server', lambda: (lambda r: eq(r['status'], 'server'))(probe.probe_one(ep('/boom/models'))))
 T('POST chat 探针能发出', lambda: (lambda r: eq(r['status'], 'ok'))(probe.probe_one(ep('/chat/chat/completions', 'chat', 'm1'))))
 T('chat 缺 model 直接报错而不是发出去', lambda: (lambda r: eq(r['status'], 'error'))(probe.probe_one(ep('/chat/chat/completions', 'chat', None))))
+T('403 说「缺 API key」→ 归 auth，不归被拒绝', lambda: (lambda r: eq(r['status'], 'auth'))(probe.probe_one(ep('/gk/models'))))
+T('403 说「缺 API key」但带了 key → 归 badkey', lambda: (lambda r: eq(r['status'], 'badkey'))(probe.probe_one(ep('/gk/models'), key='sk-abcdefghijklmnop')))
+T('403 只说 Access denied → 保持 forbidden', lambda: (lambda r: eq(r['status'], 'forbidden'))(probe.probe_one(ep('/deny/models'))))
 T('超时归 unreachable', lambda: (lambda r: eq(r['status'], 'unreachable'))(probe.probe_one(ep('/slow/models'), timeout=0.3)))
 T('连不上的端口归 unreachable', lambda: (lambda r: eq(r['status'], 'unreachable'))(
     probe.probe_one({'id': 'y', 'base': 'http://127.0.0.1:9', 'path': '/models', 'probe': 'models', 'env': 'Y'})))

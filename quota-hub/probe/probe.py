@@ -31,6 +31,12 @@ UA = 'quota-hub-probe/1 (+https://github.com/albertlionzz/ai-agent-quota-hub)'
 STATUSES = ('ok', 'auth', 'badkey', 'forbidden', 'notfound', 'ratelimited', 'server', 'unreachable', 'error', 'skipped')
 
 # 代理回 502 时代替上游报的连接失败，说明是网络层问题
+# 有些厂商用 403 表达「你没带凭据」（Google、Cerebras 都这样），
+# 按状态码归到「被拒绝」会误导人去查地域封锁，得看报文再分一次。
+AUTH_HINT = re.compile(
+    r'api[-_\s]?key|apikey|not authenticated|unauthor|credential|token is invalid|missing bearer',
+    re.I)
+
 CONNECT_FAIL = re.compile(
     r'connect failed|connection refused|actively refused|积极拒绝|ECONNREFUSED|'
     r'name or service not known|getaddrinfo|no such host|tunnel connection failed',
@@ -162,6 +168,9 @@ def probe_one(ep, key=None, timeout=12):
         out['detail'] = redact(extract_msg(body), key)
         # 代理和企业网关在连不上上游时常常回 502/503/504，报文里带 connect failed。
         # 这种情况是「网络到不了」，不是「对方服务端挂了」——分开报，人才知道该找谁。
+        if status == 'forbidden' and AUTH_HINT.search(out['detail']):
+            out['status'] = 'badkey' if key else 'auth'
+            status = out['status']
         if status == 'server' and CONNECT_FAIL.search(out['detail']):
             out['status'] = 'unreachable'
             status = 'unreachable'

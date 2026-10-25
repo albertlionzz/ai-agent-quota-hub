@@ -151,7 +151,7 @@ function renderProbe() {
     <div class="probe-foot">
       <p><b>401/403 不是故障。</b>没配 key 时探到「需鉴权」说明端点存在、路径正确——真正要修的是 404（base_url 写错）和「key 无效」（带 key 仍 401）。</p>
       <p><b>探的是「路」，不是「量」。</b>用 <code class="mono">GET /models</code>，不消耗 token、不占生成额度，所以它只能证明接得通，证明不了还剩多少。</p>
-      <p><b>执行环境会影响结果。</b>GitHub Actions 是海外 runner，境内平台在那边可能慢或被拦，表现为「未连通」——这代表公网可达性，不代表你在境内访问的真实质量。想拿到本地视角，就在自己机器上跑 <code class="mono">python quota-hub/probe/probe.py</code>。</p>
+      <p><b>执行环境决定你看到什么。</b>同一批端点，本机（境内网络）探到 4 家「未连通」，而 GitHub 的海外 runner 一家都没断路——反过来这些海外平台在这边也可能根本连不上。所以这张卡只回答「这个执行环境能不能到」，不回答「这个平台对你可不可用」。想要本机视角，跑 <code class="mono">python quota-hub/probe/probe.py</code>。</p>
       ${PROBE_STATE.err ? `<p class="probe-err">读取线上 probe.json 失败：${esc(PROBE_STATE.err)}，当前显示的是${esc(srcText)}。</p>` : ''}
     </div>
 

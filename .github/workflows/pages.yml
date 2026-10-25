@@ -53,6 +53,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 部署前重新构建一次：把刚被 probe 工作流更新的 probe.json 内联进产物。
+      # 否则提交的 HTML 里永远是上一轮快照，只有线上 fetch 才能纠正。
+      - name: Rebuild（内联最新探活快照）
+        run: python quota-hub/build.py
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
