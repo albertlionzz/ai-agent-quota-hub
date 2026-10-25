@@ -1,0 +1,80 @@
+name: probe
+
+# 每 6 小时探一次活，把「哪些端点还通、哪些 base_url 已经 404」写成 probe.json。
+# 页面读这个文件显示数据新鲜度——这是本项目从「一份报告」变成「一个工具」的关键一步。
+on:
+  schedule:
+    - cron: '17 */6 * * *'      # 错开整点，避免和一堆定时任务挤在 :00
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/probe.yml'
+      - 'quota-hub/probe/**'    # 端点表或探活脚本改了，立刻跑一次验证
+
+permissions:
+  contents: write               # 需要提交 probe.json
+  models: read                  # github-models 用 workflow token 就够，不必另配 PAT
+
+concurrency:
+  group: probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 端点表只有一个真相源（assets/verify.js）。这里先校验 endpoints.json 没漂移，
+      # 漂了就说明有人改了 verify.js 忘了重生成——让 CI 红，比让探活测错端点好。
+      - name: 校验端点清单与 verify.js 一致
+        run: node quota-hub/probe/gen_endpoints.js --check
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 没配 secret 的变量会是空字符串，脚本按「无 key」处理，探到 401 记为「需鉴权」而非失败。
+      # 所以零 secret 也能跑，验的是路对不对，不是钱够不够。
+      - name: 探活
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          HUNYUAN_API_KEY: ${{ secrets.HUNYUAN_API_KEY }}
+          QIANFAN_API_KEY: ${{ secrets.QIANFAN_API_KEY }}
+          SPARK_API_KEY: ${{ secrets.SPARK_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
+          LONGCAT_API_KEY: ${{ secrets.LONGCAT_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+        run: python quota-hub/probe/probe.py --out probe.json --timeout 12 --workers 6
+
+      - name: 提交结果
+        run: |
+          if git diff --quiet -- probe.json; then
+            echo "probe.json 无变化"
+            exit 0
+          fi
+          git config user.name  "quota-hub-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add probe.json
+          git commit -m "chore(probe): $(date -u +%Y-%m-%dT%H:%MZ) 探活结果"
+          git push

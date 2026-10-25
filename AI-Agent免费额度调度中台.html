@@ -1900,6 +1900,99 @@ kbd,
 }
 #ob-verify:disabled { opacity: .55; cursor: progress; }
 
+/* ============================================================
+   自动探活（Probe）
+   ============================================================ */
+.probe-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.probe-when {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-2);
+}
+.probe-when b { font-size: 14px; color: var(--ink); font-weight: 600; }
+.probe-at {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  letter-spacing: .01em;
+}
+.probe-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.probe-counts {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--bg); border-radius: var(--r-sm);
+  font-size: 12px; color: var(--ink-2);
+}
+.probe-c { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.probe-c b { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+
+.probe-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: 0 0 7px;
+  display: inline-block; background: var(--ink-3);
+}
+.probe-dot.green { background: var(--green); }
+.probe-dot.amber { background: var(--amber); }
+.probe-dot.red   { background: var(--red); }
+.probe-dot.slate { background: var(--slate); }
+.probe-dot.ghost { background: #c3c8d0; }
+
+.probe-alert {
+  padding: 10px 14px; margin-bottom: 14px; border-radius: var(--r-sm);
+  background: rgba(184, 52, 44, .07); color: #8a221c;
+  font-size: 12px; line-height: 1.6;
+  border-left: 2px solid var(--red);
+}
+
+.probe-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  gap: 8px;
+}
+.probe-item {
+  display: grid; grid-template-columns: 7px 1fr auto;
+  grid-template-areas: "dot name st" "dot sub sub";
+  align-items: center; column-gap: 8px; row-gap: 2px;
+  padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--card); border: 1px solid var(--line-2);
+  transition: border-color .15s, background .15s;
+}
+.probe-item:hover { border-color: var(--line); background: var(--bg); }
+.probe-item .probe-dot { grid-area: dot; }
+.probe-name {
+  grid-area: name; font-size: 12px; font-weight: 500; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.probe-st {
+  grid-area: st; font-size: 10.5px; color: var(--ink-3);
+  white-space: nowrap;
+}
+/* 状态文字跟着颜色走：一屏 22 条，先看颜色再读字比逐条读快得多 */
+.probe-item.st-red   .probe-st { color: var(--red); }
+.probe-item.st-amber .probe-st { color: var(--amber); }
+.probe-item.st-green .probe-st { color: var(--green); }
+.probe-item.st-slate .probe-st { color: var(--slate); }
+.probe-sub {
+  grid-area: sub; font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.probe-foot {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-2);
+  font-size: 11.5px; line-height: 1.7; color: var(--ink-2);
+}
+.probe-foot p + p { margin-top: 6px; }
+.probe-foot b { color: var(--ink); }
+.probe-err { color: #8a221c; }
+
+.probe-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.probe-empty { font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+.probe-empty b { display: block; font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+
+@media (max-width: 720px) {
+  .probe-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .probe-top { flex-direction: column; align-items: flex-start; }
+}
+
 </style>
 </head>
 <body>
@@ -2365,10 +2458,21 @@ kbd,
         <div class="card-head">
           <h2>为什么需要这一页</h2>
           <p>额度表再准，接不通也是零。本轮核实里，<b>MiniMax、讯飞、Kimi、LongCat 四家的 base_url 都出现了 2~3 个互相冲突的版本</b>，
-            而 DeepSeek、Groq、Kimi 的 model id 又刚经历过一轮集体退役。这一页只做两件事：给出以官方文档为准的接入硬事实，
-            以及导出一个能用你自己的 key 跑一遍的自检脚本。</p>
+            而 DeepSeek、Groq、Kimi 的 model id 又刚经历过一轮集体退役。这一页只做三件事：给出以官方文档为准的接入硬事实、
+            每 6 小时自动探一次端点还通不通，以及导出一个能用你自己的 key 跑一遍的自检脚本。</p>
         </div>
         <div class="kpi-grid" id="verify-summary"></div>
+      </div>
+
+      <!-- 自动探活：数据新鲜度 + 端点可达性 -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>最近一次自动探活</h2>
+          <p>GitHub Actions 每 6 小时对下表每个端点发一次 <code class="mono">GET /models</code>（不耗 token），
+             结果写进 <code class="mono">probe.json</code>。没配 key 也照样跑——401 恰好证明「端点存在」，
+             真正要修的是 404 和「key 无效」。</p>
+        </div>
+        <div id="probe-body"></div>
       </div>
 
       <div class="card" style="margin-top:16px">
@@ -6172,7 +6276,7 @@ const PIPE_BASE = {
   cerebras: 'https://api.cerebras.ai/v1',
   mistral: 'https://api.mistral.ai/v1',
   'github-models': 'https://models.github.ai/inference',
-  sensenova: 'https://api.sensenova.cn/v1',
+  sensenova: 'https://api.sensenova.cn/compatible-mode/v1',
   moonshot: 'https://api.moonshot.cn/v1',
   minimax: 'https://api.minimaxi.com/v1',
   spark: 'https://spark-api-open.xf-yun.com/v1',
@@ -8269,6 +8373,228 @@ function renderAccess() {
   }
 }
 
+  const PROBE_SNAPSHOT = {"schema":1,"generatedAt":"2026-10-25T13:27:25Z","runner":"local","total":22,"probed":22,"counts":{"ok":2,"auth":11,"badkey":0,"forbidden":5,"notfound":0,"ratelimited":0,"server":0,"unreachable":4,"error":0,"skipped":0},"results":{"openai":{"status":"unreachable","http":null,"ms":8145,"keyed":false,"detail":"URLError: <urlopen error timed out>","at":"2026-10-25T13:27:25Z"},"anthropic":{"status":"forbidden","http":403,"ms":887,"keyed":false,"at":"2026-10-25T13:27:18Z","detail":"Request not allowed"},"gemini":{"status":"unreachable","http":null,"ms":8144,"keyed":false,"detail":"URLError: <urlopen error timed out>","at":"2026-10-25T13:27:25Z"},"deepseek":{"status":"auth","http":401,"ms":350,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"Authentication Fails (governor)"},"bailian":{"status":"auth","http":401,"ms":252,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."},"volc":{"status":"auth","http":401,"ms":276,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"the API key or AK/SK in the request is missing or invalid. request id: 021792934840498dcb1816737a882efaaf7e81dc5119b17486ffb"},"moonshot":{"status":"auth","http":401,"ms":161,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"Incorrect API key provided"},"zhipu":{"status":"auth","http":401,"ms":162,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"Header中未收到Authorization参数，无法进行身份验证。"},"minimax":{"status":"auth","http":401,"ms":156,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"},"xai":{"status":"unreachable","http":null,"ms":8007,"keyed":false,"detail":"URLError: <urlopen error timed out>","at":"2026-10-25T13:27:25Z"},"hunyuan":{"status":"auth","http":401,"ms":1162,"keyed":false,"at":"2026-10-25T13:27:18Z","detail":"Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."},"qianfan":{"status":"forbidden","http":403,"ms":160,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"Access denied."},"spark":{"status":"auth","http":401,"ms":91,"keyed":false,"at":"2026-10-25T13:27:17Z","detail":"Unauthorized"},"mistral":{"status":"unreachable","http":null,"ms":8022,"keyed":false,"detail":"URLError: <urlopen error timed out>","at":"2026-10-25T13:27:25Z"},"sensenova":{"status":"auth","http":401,"ms":130,"keyed":false,"at":"2026-10-25T13:27:18Z","detail":"Authorization [redacted] Found"},"longcat":{"status":"auth","http":401,"ms":112,"keyed":false,"at":"2026-10-25T13:27:18Z","detail":"missing_api_key"},"openrouter":{"status":"ok","http":200,"ms":1836,"keyed":false,"at":"2026-10-25T13:27:20Z"},"groq":{"status":"forbidden","http":403,"ms":958,"keyed":false,"at":"2026-10-25T13:27:19Z","detail":"Forbidden"},"siliconflow":{"status":"auth","http":401,"ms":172,"keyed":false,"at":"2026-10-25T13:27:19Z","detail":"Token is invalid."},"github-models":{"status":"ok","http":200,"ms":4909,"keyed":false,"at":"2026-10-25T13:27:24Z"},"together":{"status":"forbidden","http":403,"ms":364,"keyed":false,"at":"2026-10-25T13:27:20Z","detail":"<!DOCTYPE html> <!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]--> <!--[if IE 7]> <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-"},"cerebras":{"status":"forbidden","http":403,"ms":728,"keyed":false,"at":"2026-10-25T13:27:21Z","detail":"The site owner has blocked the country or region associated with your IP address."}}};
+  /* ============================================================
+   自动探活结果展示（Probe）
+   ------------------------------------------------------------
+   解决的问题：整站最弱的一环是「数据的日期」。别人每 6 小时探活、
+   每天巡检，而这里的额度表停在「核对至某日」。
+   probe.json 由 GitHub Actions 定时生成，这一页只做两件事：
+     1) 告诉你这份数据有多新（以及是不是本地快照）
+     2) 告诉你哪些端点是通的、哪些 base_url 已经 404
+   两种数据源：构建时内联的快照（离线可用）+ 运行时 fetch 同目录
+   probe.json（线上版拿最新的）。file:// 下 fetch 会被浏览器拦，
+   所以必须有快照兜底，否则本地打开永远是一片空白。
+   ============================================================ */
+
+const PROBE_STATUS = {
+  ok:          { label: '可访问',  cls: 'green', why: '带 key 拿到 200，端点和密钥都对' },
+  auth:        { label: '需鉴权',  cls: 'slate', why: '端点存在且要求鉴权（401/403）。没配 key 时这是正常结果——路是对的' },
+  badkey:      { label: 'key 无效', cls: 'red',   why: '带了 key 仍 401/403，去控制台重新生成' },
+  forbidden:   { label: '被拒绝',  cls: 'red',   why: '403：服务器拒绝了请求。多半是地域封锁或 IP 限制，也可能 key 没有该模型权限——换 key 未必有用' },
+  notfound:    { label: '404',     cls: 'red',   why: '端点不存在：base_url 或路径写错了，跟 key 无关' },
+  ratelimited: { label: '限流',    cls: 'amber', why: '429：配置没问题，只是额度或频率到了' },
+  server:      { label: '5xx',     cls: 'amber', why: '对方服务端故障，隔一轮再看' },
+  unreachable: { label: '未连通',  cls: 'ghost', why: '执行环境到不了这个地址。可能是网络或地域限制，不等于平台挂了' },
+  error:       { label: '异常',    cls: 'ghost', why: '' },
+  skipped:     { label: '未探',    cls: 'ghost', why: '本次没有发起请求' }
+};
+
+/* 有问题的排前面：探活的意义就是先看坏消息 */
+const PROBE_ORDER = ['notfound', 'badkey', 'forbidden', 'ratelimited', 'server', 'unreachable', 'error', 'auth', 'ok', 'skipped'];
+
+const PROBE_STATE = {
+  data: (typeof PROBE_SNAPSHOT !== 'undefined' ? PROBE_SNAPSHOT : null),
+  source: 'snapshot',
+  err: '',
+  tried: false
+};
+
+function probeHours(iso) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!t) return null;
+  return (Date.now() - t) / 3600000;
+}
+
+function probeAgo(iso) {
+  const h = probeHours(iso);
+  if (h == null) return '时间不明';
+  if (h < 0.08) return '刚刚';
+  if (h < 1) return Math.round(h * 60) + ' 分钟前';
+  if (h < 24) return Math.round(h) + ' 小时前';
+  return Math.round(h / 24) + ' 天前';
+}
+
+function probeFreshness(iso) {
+  const h = probeHours(iso);
+  if (h == null) return { cls: 'ghost', text: '时间不明' };
+  if (h <= 8) return { cls: 'green', text: '新鲜' };
+  if (h <= 24) return { cls: 'amber', text: '偏旧' };
+  return { cls: 'red', text: '已过期' };
+}
+
+/* 卡片一行放不下「百度千帆（文心）」这种全名，去掉括号补语显示，全名放 title。
+   不直接截断是因为截断会把 Anthropic (Claude) 变成 "Anthropic (Clau..."，
+   括号开着更难看，也不易辨认。 */
+function probeShortName(n) {
+  const s = String(n == null ? '' : n).replace(/[（(][^）)]*[）)]/g, '').trim();
+  return s.length >= 2 ? s : String(n == null ? '' : n);
+}
+
+function probeNames() {
+  const m = {};
+  (typeof VENDOR_ACCESS !== 'undefined' ? VENDOR_ACCESS : []).forEach(v => { m[v.id] = v.name; });
+  return m;
+}
+
+function renderProbe() {
+  const host = $('#probe-body');
+  if (!host) return;
+  const d = PROBE_STATE.data;
+
+  if (!d || !d.results) {
+    host.innerHTML = `
+      <div class="probe-empty">
+        <b>还没有探活数据</b>
+        <p>仓库根的 <code class="mono">probe.json</code> 由 GitHub Actions 每 6 小时更新一次。
+           浏览器在本地打开文件时不允许读同目录文件，所以这里读不到——用线上版，或者选一份你本地的 probe.json。</p>
+        <div class="probe-acts">
+          <button class="ghost-btn" id="probe-reload">重新读取</button>
+          <button class="ghost-btn" id="probe-pick">选择本地 probe.json</button>
+          <input type="file" id="probe-file" accept="application/json,.json" hidden>
+        </div>
+      </div>`;
+    probeBind();
+    return;
+  }
+
+  const results = d.results;
+  const ids = Object.keys(results);
+  const names = probeNames();
+  const fresh = probeFreshness(d.generatedAt);
+  const c = d.counts || {};
+  const bad = (c.notfound || 0) + (c.badkey || 0);
+  const srcText = PROBE_STATE.source === 'live' ? '线上实时读取'
+    : PROBE_STATE.source === 'file' ? '你选择的本地文件'
+    : '构建时内联的快照';
+
+  const items = ids.slice().sort((a, b) => {
+    const ra = PROBE_ORDER.indexOf((results[a] || {}).status);
+    const rb = PROBE_ORDER.indexOf((results[b] || {}).status);
+    return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb);
+  });
+
+  host.innerHTML = `
+    <div class="probe-top">
+      <div class="probe-when">
+        <span class="chip ${fresh.cls}">${esc(fresh.text)}</span>
+        <b>${esc(probeAgo(d.generatedAt))}</b>
+        <span class="probe-at">${esc(String(d.generatedAt || '').replace('T', ' ').replace('Z', ' UTC'))}</span>
+      </div>
+      <div class="probe-chips">
+        <span class="chip ghost">来源 · ${esc(srcText)}</span>
+        <span class="chip ghost">执行环境 · ${esc(d.runner || '未知')}</span>
+        <span class="chip ghost">探到 ${esc(String(d.probed != null ? d.probed : ids.length))} / ${esc(String(d.total || ids.length))}</span>
+      </div>
+    </div>
+
+    <div class="probe-counts">
+      ${PROBE_ORDER.filter(s => c[s]).map(s => `
+        <span class="probe-c"><i class="probe-dot ${PROBE_STATUS[s].cls}"></i>${PROBE_STATUS[s].label} <b>${c[s]}</b></span>`).join('')}
+    </div>
+
+    ${bad ? `<div class="probe-alert">有 ${bad} 家需要你看一眼：${(c.notfound ? `404 ${c.notfound} 家（endpoint 写错）` : '')}${c.notfound && c.badkey ? '，' : ''}${(c.badkey ? `key 无效 ${c.badkey} 家` : '')}。这两类都是「配置错」，不是「平台挂了」。</div>` : ''}
+
+    <div class="probe-grid">
+      ${items.map(id => {
+        const r = results[id] || {};
+        const st = PROBE_STATUS[r.status] || PROBE_STATUS.error;
+        const bits = [];
+        if (r.http) bits.push('HTTP ' + r.http);
+        if (r.ms) bits.push(r.ms + 'ms');
+        if (r.models) bits.push(r.models + ' 个模型');
+        const full = names[id] || id;
+        return `<div class="probe-item st-${st.cls}" title="${esc(full + ' · ' + st.why + (r.detail ? '：' + r.detail : ''))}">
+          <i class="probe-dot ${st.cls}"></i>
+          <span class="probe-name">${esc(probeShortName(full))}</span>
+          <span class="probe-st">${esc(st.label)}</span>
+          <span class="probe-sub">${esc(bits.join(' · '))}</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="probe-foot">
+      <p><b>401/403 不是故障。</b>没配 key 时探到「需鉴权」说明端点存在、路径正确——真正要修的是 404（base_url 写错）和「key 无效」（带 key 仍 401）。</p>
+      <p><b>探的是「路」，不是「量」。</b>用 <code class="mono">GET /models</code>，不消耗 token、不占生成额度，所以它只能证明接得通，证明不了还剩多少。</p>
+      <p><b>执行环境会影响结果。</b>GitHub Actions 是海外 runner，境内平台在那边可能慢或被拦，表现为「未连通」——这代表公网可达性，不代表你在境内访问的真实质量。想拿到本地视角，就在自己机器上跑 <code class="mono">python quota-hub/probe/probe.py</code>。</p>
+      ${PROBE_STATE.err ? `<p class="probe-err">读取线上 probe.json 失败：${esc(PROBE_STATE.err)}，当前显示的是${esc(srcText)}。</p>` : ''}
+    </div>
+
+    <div class="probe-acts">
+      <button class="ghost-btn" id="probe-reload">重新读取线上数据</button>
+      <button class="ghost-btn" id="probe-pick">载入本地 probe.json</button>
+      <input type="file" id="probe-file" accept="application/json,.json" hidden>
+    </div>`;
+
+  probeBind();
+}
+
+function probeBind() {
+  const re = $('#probe-reload');
+  if (re) re.addEventListener('click', () => { PROBE_STATE.tried = false; probeFetch(); });
+
+  const pick = $('#probe-pick');
+  const file = $('#probe-file');
+  if (pick && file) {
+    pick.addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const j = JSON.parse(rd.result);
+          if (!j || !j.results) throw new Error('这不是 probe.json（缺 results 字段）');
+          PROBE_STATE.data = j;
+          PROBE_STATE.source = 'file';
+          PROBE_STATE.err = '';
+        } catch (e) {
+          PROBE_STATE.err = e.message;
+        }
+        renderProbe();
+      };
+      rd.readAsText(f);
+    });
+  }
+}
+
+function probeFetch() {
+  if (PROBE_STATE.tried) return;
+  PROBE_STATE.tried = true;
+  if (typeof fetch !== 'function' || location.protocol === 'file:') {
+    /* 本地打开时不必发请求，浏览器一定会拦，直接用快照 */
+    PROBE_STATE.source = PROBE_STATE.data ? 'snapshot' : 'none';
+    PROBE_STATE.err = PROBE_STATE.data ? '' : '本地打开无法读取 probe.json';
+    renderProbe();
+    return;
+  }
+  fetch('./probe.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(j => {
+      if (!j || !j.results) throw new Error('格式不对');
+      PROBE_STATE.data = j;
+      PROBE_STATE.source = 'live';
+      PROBE_STATE.err = '';
+      renderProbe();
+    })
+    .catch(e => {
+      PROBE_STATE.err = e.message || String(e);
+      PROBE_STATE.source = PROBE_STATE.data ? 'snapshot' : 'none';
+      renderProbe();
+    });
+}
+
   /* ============================================================
    接入核验（Access Verification）
    ------------------------------------------------------------
@@ -8588,18 +8914,25 @@ const VENDOR_ACCESS = [
   {
     id: 'sensenova', name: '商汤 SenseNova', vendor: '商汤科技', region: 'cn', tier: 2,
     console: 'https://platform.sensenova.cn',
-    base: 'https://api.sensenova.cn/v1',
-    alt: [{ url: 'https://token.sensenova.cn/v1', note: '另有来源给出的端点，需验证' }],
+    base: 'https://api.sensenova.cn/compatible-mode/v1',
+    /* 探活用原生端点：compatible-mode 没实现 /models，
+       拿它探会得到 404，那是假故障。原生 /v1/llm/models 返回 401 = 端点存在。 */
+    probeBase: 'https://api.sensenova.cn/v1',
+    probePath: '/llm/models',
+    alt: [
+      { url: 'https://api.sensenova.cn/v1/llm/chat-completions', note: '原生协议端点（不是 OpenAI 格式），实测存在' },
+      { url: 'https://token.sensenova.cn/v1', note: '另有来源给出的端点，未验证' }
+    ],
     env: 'SENSENOVA_API_KEY', keyPrefix: 'sk-',
     models: ['SenseNova-V6-Turbo', 'Kimi-K3', 'DeepSeek-V4-Pro', 'GLM-5.2'],
     retired: [],
     probe: 'models',
     free: 'limited',
     freeText: 'Free 档 ¥0/月：滚动 5 小时 60,000 积分 + 滚动周 600,000 积分；公测期可直接调 Kimi K3 / DeepSeek V4 Pro / GLM-5.2 等旗舰',
-    verifyDate: '2026-10-20',
+    verifyDate: '2026-10-25',
     src: 'https://platform.sensenova.cn',
     srcName: 'SenseNova 控制台',
-    conflict: '⚠ 端点两个版本并存，且官方处于公测期，规则可能随时调整。',
+    conflict: '⚠ 端点三个版本并存。2026-10-25 实测定论：`/v1/chat/completions` = 404（大量老教程抄的就是这个，直接打不通）、`compatible-mode/v1/chat/completions` = 401（存在，要鉴权）、原生 `/v1/llm/chat-completions` = 401（存在，非 OpenAI 格式）。结论：OpenAI 兼容调用只能走 compatible-mode。',
     pitfall: '⚠ 积分制不是 token 制，实际能跑多少要自己测。Flash-Lite 走专属积分池，规则不同。',
     note: '当前唯一能免费用到三家国产旗舰的入口，价值最高，但也是变动风险最大的一个。'
   },
@@ -9131,6 +9464,11 @@ function renderVerify() {
   /* 紧凑类挂在列表容器上，空结果时也要生效 */
   const listEl = $('#verify-list');
   if (listEl) listEl.classList.toggle('compact', VERIFY_COMPACT);
+
+  /* 探活卡片：先用构建时快照渲染，再尝试拉一次线上 probe.json。
+     renderVerify 会被筛选器反复调用，probeFetch 内部有 tried 闸门，不会重复请求。 */
+  renderProbe();
+  probeFetch();
 
   /* --- 主表 --- */
   if (!list.length) {

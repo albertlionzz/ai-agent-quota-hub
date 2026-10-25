@@ -273,7 +273,27 @@
     add('刷新后额度条目数 > 0', R.persist > 0, R.persist);
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17];
+  /* ---------- 18. 接入核验的探活卡片 ---------- */
+  function s18() {
+    navTo('verify');
+    var body = q('#probe-body');
+    var items = qa('.probe-item');
+    var h = txt(body);
+    add('探活卡片已渲染', !!body, body ? 'ok' : 'missing');
+    add('探活条目 >= 20 家', items.length >= 20, items.length);
+    add('显示执行环境与数据来源', /执行环境/.test(h) && /来源/.test(h), h.replace(/\s+/g, ' ').slice(0, 44));
+    add('不是空态（快照已内联）', h.indexOf('还没有探活数据') === -1);
+    add('每条都有状态点', qa('.probe-item .probe-dot').length === items.length, qa('.probe-item .probe-dot').length + '/' + items.length);
+    /* 告警条只该在「404 / key 无效」出现——这两类才是配置错。
+       所以断言的不是「有没有告警条」，而是「告警条和计数一致」。 */
+    function lastInt(t) { var m = String(t).match(/\d+/g); return m ? parseInt(m[m.length - 1], 10) : 0; }
+    var alertN = qa('#probe-body .probe-alert').length;
+    var badN = qa('#probe-body .probe-c').filter(function (x) { return /404|key 无效/.test(txt(x)); })
+      .reduce(function (a, x) { return a + lastInt(txt(x)); }, 0);
+    add('告警条与 404/key 无效 计数一致', (alertN > 0) === (badN > 0), 'alert=' + alertN + ', bad=' + badN);
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s16, s17];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();

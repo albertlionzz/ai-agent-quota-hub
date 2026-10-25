@@ -21,6 +21,27 @@ palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
 walletio = (ASSETS / "walletio.js").read_text(encoding="utf-8")
 schedule = (ASSETS / "schedule.js").read_text(encoding="utf-8")
 onboard = (ASSETS / "onboard.js").read_text(encoding="utf-8")
+probe = (ASSETS / "probe.js").read_text(encoding="utf-8")
+
+# 探活快照：仓库根的 probe.json 由 GitHub Actions 每 6 小时更新。
+# 内联进产物有两个理由：① file:// 打开时浏览器不允许 fetch 同目录文件，
+# 没有快照就永远是一片空白；② 线上异步拉取失败时也有兜底。
+# 缺失不算错误——还没跑过探活的仓库照样能构建。
+import json
+
+snapshot_path = ROOT.parent / "probe.json"
+if snapshot_path.exists():
+    try:
+        _snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        probe_snapshot = "const PROBE_SNAPSHOT = " + json.dumps(
+            _snap, ensure_ascii=False, separators=(",", ":")
+        ).replace("</", "<\\/") + ";"
+    except Exception as exc:  # 坏 JSON 不要拖垮构建，只是没有快照
+        print(f"警告：probe.json 解析失败，跳过快照注入（{exc}）")
+        probe_snapshot = "const PROBE_SNAPSHOT = null;"
+else:
+    probe_snapshot = "const PROBE_SNAPSHOT = null;"
+
 
 # 模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
@@ -36,6 +57,8 @@ for ph, payload in [
     ("/*__PIPE__*/", pipe),
     ("/*__ORCH__*/", orch),
     ("/*__ACCESS__*/", access),
+    ("/*__PROBESNAP__*/", probe_snapshot),
+    ("/*__PROBE__*/", probe),
     ("/*__VERIFY__*/", verify),
     ("/*__PALETTE__*/", palette),
 ]:

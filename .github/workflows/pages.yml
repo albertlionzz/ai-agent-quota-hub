@@ -65,6 +65,9 @@ jobs:
           cp "AI-Agent免费额度调度中台.html" "_site/quota-hub.html"
           cp "AI-Agent免费额度调研报告.md" "_site/report.md"
           cp README.md "_site/README.md"
+          # 探活结果要能被页面 fetch 到同目录的 probe.json；没有就跳过，
+          # 页面会退回构建时内联的快照，不至于白屏。
+          if [ -f probe.json ]; then cp probe.json "_site/probe.json"; else echo "::notice::还没有 probe.json，跳过"; fi
           # 关掉 Jekyll 处理，避免 _ 开头的路径被吞
           touch _site/.nojekyll
           ls -lh _site

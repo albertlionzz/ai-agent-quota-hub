@@ -317,18 +317,25 @@ const VENDOR_ACCESS = [
   {
     id: 'sensenova', name: '商汤 SenseNova', vendor: '商汤科技', region: 'cn', tier: 2,
     console: 'https://platform.sensenova.cn',
-    base: 'https://api.sensenova.cn/v1',
-    alt: [{ url: 'https://token.sensenova.cn/v1', note: '另有来源给出的端点，需验证' }],
+    base: 'https://api.sensenova.cn/compatible-mode/v1',
+    /* 探活用原生端点：compatible-mode 没实现 /models，
+       拿它探会得到 404，那是假故障。原生 /v1/llm/models 返回 401 = 端点存在。 */
+    probeBase: 'https://api.sensenova.cn/v1',
+    probePath: '/llm/models',
+    alt: [
+      { url: 'https://api.sensenova.cn/v1/llm/chat-completions', note: '原生协议端点（不是 OpenAI 格式），实测存在' },
+      { url: 'https://token.sensenova.cn/v1', note: '另有来源给出的端点，未验证' }
+    ],
     env: 'SENSENOVA_API_KEY', keyPrefix: 'sk-',
     models: ['SenseNova-V6-Turbo', 'Kimi-K3', 'DeepSeek-V4-Pro', 'GLM-5.2'],
     retired: [],
     probe: 'models',
     free: 'limited',
     freeText: 'Free 档 ¥0/月：滚动 5 小时 60,000 积分 + 滚动周 600,000 积分；公测期可直接调 Kimi K3 / DeepSeek V4 Pro / GLM-5.2 等旗舰',
-    verifyDate: '2026-10-20',
+    verifyDate: '2026-10-25',
     src: 'https://platform.sensenova.cn',
     srcName: 'SenseNova 控制台',
-    conflict: '⚠ 端点两个版本并存，且官方处于公测期，规则可能随时调整。',
+    conflict: '⚠ 端点三个版本并存。2026-10-25 实测定论：`/v1/chat/completions` = 404（大量老教程抄的就是这个，直接打不通）、`compatible-mode/v1/chat/completions` = 401（存在，要鉴权）、原生 `/v1/llm/chat-completions` = 401（存在，非 OpenAI 格式）。结论：OpenAI 兼容调用只能走 compatible-mode。',
     pitfall: '⚠ 积分制不是 token 制，实际能跑多少要自己测。Flash-Lite 走专属积分池，规则不同。',
     note: '当前唯一能免费用到三家国产旗舰的入口，价值最高，但也是变动风险最大的一个。'
   },
@@ -860,6 +867,11 @@ function renderVerify() {
   /* 紧凑类挂在列表容器上，空结果时也要生效 */
   const listEl = $('#verify-list');
   if (listEl) listEl.classList.toggle('compact', VERIFY_COMPACT);
+
+  /* 探活卡片：先用构建时快照渲染，再尝试拉一次线上 probe.json。
+     renderVerify 会被筛选器反复调用，probeFetch 内部有 tried 闸门，不会重复请求。 */
+  renderProbe();
+  probeFetch();
 
   /* --- 主表 --- */
   if (!list.length) {

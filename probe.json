@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-25T13:27:25Z",
+  "runner": "local",
+  "total": 22,
+  "probed": 22,
+  "counts": {
+    "ok": 2,
+    "auth": 11,
+    "badkey": 0,
+    "forbidden": 5,
+    "notfound": 0,
+    "ratelimited": 0,
+    "server": 0,
+    "unreachable": 4,
+    "error": 0,
+    "skipped": 0
+  },
+  "results": {
+    "openai": {
+      "status": "unreachable",
+      "http": null,
+      "ms": 8145,
+      "keyed": false,
+      "detail": "URLError: <urlopen error timed out>",
+      "at": "2026-10-25T13:27:25Z"
+    },
+    "anthropic": {
+      "status": "forbidden",
+      "http": 403,
+      "ms": 887,
+      "keyed": false,
+      "at": "2026-10-25T13:27:18Z",
+      "detail": "Request not allowed"
+    },
+    "gemini": {
+      "status": "unreachable",
+      "http": null,
+      "ms": 8144,
+      "keyed": false,
+      "detail": "URLError: <urlopen error timed out>",
+      "at": "2026-10-25T13:27:25Z"
+    },
+    "deepseek": {
+      "status": "auth",
+      "http": 401,
+      "ms": 350,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "Authentication Fails (governor)"
+    },
+    "bailian": {
+      "status": "auth",
+      "http": 401,
+      "ms": 252,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."
+    },
+    "volc": {
+      "status": "auth",
+      "http": 401,
+      "ms": 276,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "the API key or AK/SK in the request is missing or invalid. request id: 021792934840498dcb1816737a882efaaf7e81dc5119b17486ffb"
+    },
+    "moonshot": {
+      "status": "auth",
+      "http": 401,
+      "ms": 161,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "Incorrect API key provided"
+    },
+    "zhipu": {
+      "status": "auth",
+      "http": 401,
+      "ms": 162,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "Header中未收到Authorization参数，无法进行身份验证。"
+    },
+    "minimax": {
+      "status": "auth",
+      "http": 401,
+      "ms": 156,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"
+    },
+    "xai": {
+      "status": "unreachable",
+      "http": null,
+      "ms": 8007,
+      "keyed": false,
+      "detail": "URLError: <urlopen error timed out>",
+      "at": "2026-10-25T13:27:25Z"
+    },
+    "hunyuan": {
+      "status": "auth",
+      "http": 401,
+      "ms": 1162,
+      "keyed": false,
+      "at": "2026-10-25T13:27:18Z",
+      "detail": "Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."
+    },
+    "qianfan": {
+      "status": "forbidden",
+      "http": 403,
+      "ms": 160,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "Access denied."
+    },
+    "spark": {
+      "status": "auth",
+      "http": 401,
+      "ms": 91,
+      "keyed": false,
+      "at": "2026-10-25T13:27:17Z",
+      "detail": "Unauthorized"
+    },
+    "mistral": {
+      "status": "unreachable",
+      "http": null,
+      "ms": 8022,
+      "keyed": false,
+      "detail": "URLError: <urlopen error timed out>",
+      "at": "2026-10-25T13:27:25Z"
+    },
+    "sensenova": {
+      "status": "auth",
+      "http": 401,
+      "ms": 130,
+      "keyed": false,
+      "at": "2026-10-25T13:27:18Z",
+      "detail": "Authorization [redacted] Found"
+    },
+    "longcat": {
+      "status": "auth",
+      "http": 401,
+      "ms": 112,
+      "keyed": false,
+      "at": "2026-10-25T13:27:18Z",
+      "detail": "missing_api_key"
+    },
+    "openrouter": {
+      "status": "ok",
+      "http": 200,
+      "ms": 1836,
+      "keyed": false,
+      "at": "2026-10-25T13:27:20Z"
+    },
+    "groq": {
+      "status": "forbidden",
+      "http": 403,
+      "ms": 958,
+      "keyed": false,
+      "at": "2026-10-25T13:27:19Z",
+      "detail": "Forbidden"
+    },
+    "siliconflow": {
+      "status": "auth",
+      "http": 401,
+      "ms": 172,
+      "keyed": false,
+      "at": "2026-10-25T13:27:19Z",
+      "detail": "Token is invalid."
+    },
+    "github-models": {
+      "status": "ok",
+      "http": 200,
+      "ms": 4909,
+      "keyed": false,
+      "at": "2026-10-25T13:27:24Z"
+    },
+    "together": {
+      "status": "forbidden",
+      "http": 403,
+      "ms": 364,
+      "keyed": false,
+      "at": "2026-10-25T13:27:20Z",
+      "detail": "<!DOCTYPE html> <!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]--> <!--[if IE 7]> <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-"
+    },
+    "cerebras": {
+      "status": "forbidden",
+      "http": 403,
+      "ms": 728,
+      "keyed": false,
+      "at": "2026-10-25T13:27:21Z",
+      "detail": "The site owner has blocked the country or region associated with your IP address."
+    }
+  }
+}

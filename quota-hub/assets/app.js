@@ -924,6 +924,8 @@
 
   /*__ORCH__*/
   /*__ACCESS__*/
+  /*__PROBESNAP__*/
+  /*__PROBE__*/
   /*__VERIFY__*/
 
   /*__PALETTE__*/

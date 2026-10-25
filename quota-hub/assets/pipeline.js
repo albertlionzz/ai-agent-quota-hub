@@ -811,7 +811,7 @@ const PIPE_BASE = {
   cerebras: 'https://api.cerebras.ai/v1',
   mistral: 'https://api.mistral.ai/v1',
   'github-models': 'https://models.github.ai/inference',
-  sensenova: 'https://api.sensenova.cn/v1',
+  sensenova: 'https://api.sensenova.cn/compatible-mode/v1',
   moonshot: 'https://api.moonshot.cn/v1',
   minimax: 'https://api.minimaxi.com/v1',
   spark: 'https://spark-api-open.xf-yun.com/v1',

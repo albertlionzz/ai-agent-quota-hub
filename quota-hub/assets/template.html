@@ -471,10 +471,21 @@
         <div class="card-head">
           <h2>为什么需要这一页</h2>
           <p>额度表再准，接不通也是零。本轮核实里，<b>MiniMax、讯飞、Kimi、LongCat 四家的 base_url 都出现了 2~3 个互相冲突的版本</b>，
-            而 DeepSeek、Groq、Kimi 的 model id 又刚经历过一轮集体退役。这一页只做两件事：给出以官方文档为准的接入硬事实，
-            以及导出一个能用你自己的 key 跑一遍的自检脚本。</p>
+            而 DeepSeek、Groq、Kimi 的 model id 又刚经历过一轮集体退役。这一页只做三件事：给出以官方文档为准的接入硬事实、
+            每 6 小时自动探一次端点还通不通，以及导出一个能用你自己的 key 跑一遍的自检脚本。</p>
         </div>
         <div class="kpi-grid" id="verify-summary"></div>
+      </div>
+
+      <!-- 自动探活：数据新鲜度 + 端点可达性 -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <h2>最近一次自动探活</h2>
+          <p>GitHub Actions 每 6 小时对下表每个端点发一次 <code class="mono">GET /models</code>（不耗 token），
+             结果写进 <code class="mono">probe.json</code>。没配 key 也照样跑——401 恰好证明「端点存在」，
+             真正要修的是 404 和「key 无效」。</p>
+        </div>
+        <div id="probe-body"></div>
       </div>
 
       <div class="card" style="margin-top:16px">
