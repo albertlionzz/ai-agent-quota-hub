@@ -1,195 +1,195 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-25T13:27:25Z",
-  "runner": "local",
+  "generatedAt": "2026-10-25T13:52:54Z",
+  "runner": "github-actions",
   "total": 22,
   "probed": 22,
   "counts": {
     "ok": 2,
-    "auth": 11,
+    "auth": 17,
     "badkey": 0,
-    "forbidden": 5,
-    "notfound": 0,
+    "forbidden": 2,
+    "notfound": 1,
     "ratelimited": 0,
     "server": 0,
-    "unreachable": 4,
+    "unreachable": 0,
     "error": 0,
     "skipped": 0
   },
   "results": {
     "openai": {
-      "status": "unreachable",
-      "http": null,
-      "ms": 8145,
+      "status": "auth",
+      "http": 401,
+      "ms": 52,
       "keyed": false,
-      "detail": "URLError: <urlopen error timed out>",
-      "at": "2026-10-25T13:27:25Z"
+      "at": "2026-10-25T13:52:51Z",
+      "detail": "Missing bearer [redacted] in header"
     },
     "anthropic": {
-      "status": "forbidden",
-      "http": 403,
-      "ms": 887,
+      "status": "auth",
+      "http": 401,
+      "ms": 120,
       "keyed": false,
-      "at": "2026-10-25T13:27:18Z",
-      "detail": "Request not allowed"
+      "at": "2026-10-25T13:52:51Z",
+      "detail": "x-api-key [redacted] is required"
     },
     "gemini": {
-      "status": "unreachable",
-      "http": null,
-      "ms": 8144,
+      "status": "notfound",
+      "http": 404,
+      "ms": 98,
       "keyed": false,
-      "detail": "URLError: <urlopen error timed out>",
-      "at": "2026-10-25T13:27:25Z"
+      "at": "2026-10-25T13:52:51Z",
+      "detail": "Requested entity was not found."
     },
     "deepseek": {
       "status": "auth",
       "http": 401,
-      "ms": 350,
+      "ms": 315,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:51Z",
       "detail": "Authentication Fails (governor)"
     },
     "bailian": {
       "status": "auth",
       "http": 401,
-      "ms": 252,
+      "ms": 1068,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:52Z",
       "detail": "You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."
     },
     "volc": {
       "status": "auth",
       "http": 401,
-      "ms": 276,
+      "ms": 785,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
-      "detail": "the API key or AK/SK in the request is missing or invalid. request id: 021792934840498dcb1816737a882efaaf7e81dc5119b17486ffb"
+      "at": "2026-10-25T13:52:52Z",
+      "detail": "the API key or AK/SK in the request is missing or invalid. request id: 021792936372277ab536ac757ac87e581a3dec3853327177b41c3"
     },
     "moonshot": {
       "status": "auth",
       "http": 401,
-      "ms": 161,
+      "ms": 1157,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:52Z",
       "detail": "Incorrect API key provided"
     },
     "zhipu": {
       "status": "auth",
       "http": 401,
-      "ms": 162,
+      "ms": 505,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:52Z",
       "detail": "Header中未收到Authorization参数，无法进行身份验证。"
     },
     "minimax": {
       "status": "auth",
       "http": 401,
-      "ms": 156,
+      "ms": 906,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:52Z",
       "detail": "login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"
     },
     "xai": {
-      "status": "unreachable",
-      "http": null,
-      "ms": 8007,
+      "status": "auth",
+      "http": 401,
+      "ms": 55,
       "keyed": false,
-      "detail": "URLError: <urlopen error timed out>",
-      "at": "2026-10-25T13:27:25Z"
+      "at": "2026-10-25T13:52:51Z",
+      "detail": "No credentials presented."
     },
     "hunyuan": {
       "status": "auth",
       "http": 401,
-      "ms": 1162,
+      "ms": 1843,
       "keyed": false,
-      "at": "2026-10-25T13:27:18Z",
+      "at": "2026-10-25T13:52:53Z",
       "detail": "Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."
     },
     "qianfan": {
       "status": "forbidden",
       "http": 403,
-      "ms": 160,
+      "ms": 1015,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:53Z",
       "detail": "Access denied."
     },
     "spark": {
       "status": "auth",
       "http": 401,
-      "ms": 91,
+      "ms": 850,
       "keyed": false,
-      "at": "2026-10-25T13:27:17Z",
+      "at": "2026-10-25T13:52:53Z",
       "detail": "Unauthorized"
     },
     "mistral": {
-      "status": "unreachable",
-      "http": null,
-      "ms": 8022,
+      "status": "auth",
+      "http": 401,
+      "ms": 192,
       "keyed": false,
-      "detail": "URLError: <urlopen error timed out>",
-      "at": "2026-10-25T13:27:25Z"
+      "at": "2026-10-25T13:52:52Z",
+      "detail": "Invalid API Key"
     },
     "sensenova": {
       "status": "auth",
       "http": 401,
-      "ms": 130,
+      "ms": 1874,
       "keyed": false,
-      "at": "2026-10-25T13:27:18Z",
+      "at": "2026-10-25T13:52:54Z",
       "detail": "Authorization [redacted] Found"
     },
     "longcat": {
       "status": "auth",
       "http": 401,
-      "ms": 112,
+      "ms": 600,
       "keyed": false,
-      "at": "2026-10-25T13:27:18Z",
+      "at": "2026-10-25T13:52:53Z",
       "detail": "missing_api_key"
     },
     "openrouter": {
       "status": "ok",
       "http": 200,
-      "ms": 1836,
+      "ms": 28,
       "keyed": false,
-      "at": "2026-10-25T13:27:20Z"
+      "at": "2026-10-25T13:52:52Z"
     },
     "groq": {
-      "status": "forbidden",
-      "http": 403,
-      "ms": 958,
+      "status": "auth",
+      "http": 401,
+      "ms": 178,
       "keyed": false,
-      "at": "2026-10-25T13:27:19Z",
-      "detail": "Forbidden"
+      "at": "2026-10-25T13:52:53Z",
+      "detail": "Invalid API Key"
     },
     "siliconflow": {
       "status": "auth",
       "http": 401,
-      "ms": 172,
+      "ms": 886,
       "keyed": false,
-      "at": "2026-10-25T13:27:19Z",
+      "at": "2026-10-25T13:52:53Z",
       "detail": "Token is invalid."
     },
     "github-models": {
       "status": "ok",
       "http": 200,
-      "ms": 4909,
-      "keyed": false,
-      "at": "2026-10-25T13:27:24Z"
+      "ms": 214,
+      "keyed": true,
+      "at": "2026-10-25T13:52:53Z"
     },
     "together": {
-      "status": "forbidden",
-      "http": 403,
-      "ms": 364,
+      "status": "auth",
+      "http": 401,
+      "ms": 429,
       "keyed": false,
-      "at": "2026-10-25T13:27:20Z",
-      "detail": "<!DOCTYPE html> <!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]--> <!--[if IE 7]> <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-"
+      "at": "2026-10-25T13:52:53Z",
+      "detail": "Missing API key"
     },
     "cerebras": {
       "status": "forbidden",
       "http": 403,
-      "ms": 728,
+      "ms": 104,
       "keyed": false,
-      "at": "2026-10-25T13:27:21Z",
-      "detail": "The site owner has blocked the country or region associated with your IP address."
+      "at": "2026-10-25T13:52:53Z",
+      "detail": "Not authenticated"
     }
   }
 }
