@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-31T05:52:42Z",
+  "generatedAt": "2026-10-31T12:42:23Z",
   "runner": "github-actions",
   "total": 22,
   "probed": 22,
@@ -20,175 +20,175 @@
     "openai": {
       "status": "auth",
       "http": 401,
-      "ms": 100,
+      "ms": 151,
       "keyed": false,
-      "at": "2026-10-31T05:52:38Z",
+      "at": "2026-10-31T12:42:18Z",
       "detail": "Missing bearer [redacted] in header"
     },
     "anthropic": {
       "status": "auth",
       "http": 401,
-      "ms": 66,
+      "ms": 154,
       "keyed": false,
-      "at": "2026-10-31T05:52:38Z",
+      "at": "2026-10-31T12:42:18Z",
       "detail": "x-api-key [redacted] is required"
     },
     "gemini": {
       "status": "auth",
       "http": 403,
-      "ms": 62,
+      "ms": 135,
       "keyed": false,
-      "at": "2026-10-31T05:52:38Z",
+      "at": "2026-10-31T12:42:18Z",
       "detail": "Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API."
     },
     "deepseek": {
       "status": "auth",
       "http": 401,
-      "ms": 397,
+      "ms": 388,
       "keyed": false,
-      "at": "2026-10-31T05:52:39Z",
+      "at": "2026-10-31T12:42:18Z",
       "detail": "Authentication Fails (governor)"
     },
     "bailian": {
       "status": "auth",
       "http": 401,
-      "ms": 1044,
+      "ms": 908,
       "keyed": false,
-      "at": "2026-10-31T05:52:39Z",
+      "at": "2026-10-31T12:42:19Z",
       "detail": "You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."
     },
     "volc": {
       "status": "auth",
       "http": 401,
-      "ms": 2086,
+      "ms": 2117,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
-      "detail": "the API key or AK/SK in the request is missing or invalid. request id: 021793425960719f9c14257dc53941c7842a2e8d7c1480418907e"
+      "at": "2026-10-31T12:42:20Z",
+      "detail": "the API key or AK/SK in the request is missing or invalid. request id: 0217934505403190990cb8fd451095e55bc9ba984701cdbcd1247"
     },
     "moonshot": {
       "status": "auth",
       "http": 401,
-      "ms": 1622,
+      "ms": 1363,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
+      "at": "2026-10-31T12:42:19Z",
       "detail": "Incorrect API key provided"
     },
     "zhipu": {
       "status": "auth",
       "http": 401,
-      "ms": 887,
+      "ms": 698,
       "keyed": false,
-      "at": "2026-10-31T05:52:39Z",
+      "at": "2026-10-31T12:42:19Z",
       "detail": "Header中未收到Authorization参数，无法进行身份验证。"
     },
     "minimax": {
       "status": "auth",
       "http": 401,
-      "ms": 1124,
+      "ms": 825,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
+      "at": "2026-10-31T12:42:19Z",
       "detail": "login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"
     },
     "xai": {
       "status": "auth",
       "http": 401,
-      "ms": 85,
+      "ms": 84,
       "keyed": false,
-      "at": "2026-10-31T05:52:39Z",
+      "at": "2026-10-31T12:42:18Z",
       "detail": "No credentials presented."
     },
     "hunyuan": {
       "status": "auth",
       "http": 401,
-      "ms": 2106,
+      "ms": 1781,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."
     },
     "qianfan": {
       "status": "forbidden",
       "http": 403,
-      "ms": 1510,
+      "ms": 1167,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Access denied."
     },
     "spark": {
       "status": "auth",
       "http": 401,
-      "ms": 995,
+      "ms": 840,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Unauthorized"
     },
     "mistral": {
       "status": "auth",
       "http": 401,
-      "ms": 129,
+      "ms": 214,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
+      "at": "2026-10-31T12:42:19Z",
       "detail": "Invalid API Key"
     },
     "sensenova": {
       "status": "auth",
       "http": 401,
-      "ms": 1289,
+      "ms": 4370,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:23Z",
       "detail": "Authorization [redacted] Found"
     },
     "longcat": {
       "status": "auth",
       "http": 401,
-      "ms": 653,
+      "ms": 750,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "missing_api_key"
     },
     "openrouter": {
       "status": "ok",
       "http": 200,
-      "ms": 22,
+      "ms": 39,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z"
+      "at": "2026-10-31T12:42:20Z"
     },
     "groq": {
       "status": "auth",
       "http": 401,
-      "ms": 96,
+      "ms": 92,
       "keyed": false,
-      "at": "2026-10-31T05:52:40Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Invalid API Key"
     },
     "siliconflow": {
       "status": "auth",
       "http": 401,
-      "ms": 1258,
+      "ms": 942,
       "keyed": false,
-      "at": "2026-10-31T05:52:42Z",
+      "at": "2026-10-31T12:42:21Z",
       "detail": "Token is invalid."
     },
     "github-models": {
       "status": "ok",
       "http": 200,
-      "ms": 134,
+      "ms": 206,
       "keyed": true,
-      "at": "2026-10-31T05:52:41Z"
+      "at": "2026-10-31T12:42:20Z"
     },
     "together": {
       "status": "auth",
       "http": 401,
-      "ms": 104,
+      "ms": 62,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Missing API key"
     },
     "cerebras": {
       "status": "auth",
       "http": 403,
-      "ms": 42,
+      "ms": 186,
       "keyed": false,
-      "at": "2026-10-31T05:52:41Z",
+      "at": "2026-10-31T12:42:20Z",
       "detail": "Not authenticated"
     }
   }
