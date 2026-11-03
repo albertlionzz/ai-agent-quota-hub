@@ -132,6 +132,22 @@ def build_request(ep, key):
     return urllib.request.Request(url, data=data, headers=headers, method=method)
 
 
+# 环回地址绝不走代理。
+# 原因：本机探测一旦经过系统代理，拿回来的是代理的 502 / 407，
+# 判定结果就变成「代理挂没挂」而不是「这个端口通不通」。
+# 这个坑在国内机器上尤其常见（系统代理、企业网关都会设 HTTP_PROXY）。
+_LOOPBACK = re.compile(r'^https?://(127\.0\.0\.1|localhost|\[::1\])([:/]|$)', re.I)
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def open_url(req, timeout):
+    """发请求：环回地址直连，其余尊重系统代理。"""
+    url = getattr(req, 'full_url', '') or ''
+    if _LOOPBACK.match(url):
+        return _DIRECT.open(req, timeout=timeout)
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
 def probe_one(ep, key=None, timeout=12):
     """探一家。永不抛异常——探活脚本自己崩掉是最糟的结果。"""
     if ep.get('probe') == 'chat' and not ep.get('model'):
@@ -139,7 +155,7 @@ def probe_one(ep, key=None, timeout=12):
     t0 = time.time()
     try:
         req = build_request(ep, key)
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with open_url(req, timeout=timeout) as r:
             code = r.status
             body = r.read(65536)
     except urllib.error.HTTPError as e:

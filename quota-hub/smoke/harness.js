@@ -293,7 +293,87 @@
     add('告警条与 404/key 无效 计数一致', (alertN > 0) === (badN > 0), 'alert=' + alertN + ', bad=' + badN);
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s16, s17];
+  /* ---------- 19. 限流冷却 ---------- */
+  function s19() {
+    var view = navTo('wallet');
+    var sels = qa('[data-wc]', view);
+    add('每张额度卡都有冷却下拉', sels.length > 0 && sels.length === qa('.witem', view).length,
+      sels.length + ' / ' + qa('.witem', view).length);
+    if (!sels.length) return;
+
+    var id = sels[0].getAttribute('data-wc');
+    var name = q('#wallet-list .winfo b') ? txt(q('#wallet-list .winfo b')) : id;
+
+    /* 设 1 小时 */
+    sels[0].value = '60';
+    sels[0].dispatchEvent(new Event('change', { bubbles: true }));
+    var on = qa('.wcool.on', view);
+    add('选时长后进入冷却态', on.length === 1, on.length);
+    add('冷却卡显示剩余时间', /限流 · 剩/.test(txt(on[0] || document.body)),
+      (on[0] ? txt(on[0]) : '').replace(/\s+/g, ' ').slice(0, 30));
+    add('KPI 汇总出现「限流中」', /限流中/.test(txt(q('#wallet-summary'))), '');
+    add('冷却写进 localStorage', (function () {
+      try {
+        var w = JSON.parse(localStorage.getItem('quotaHub.wallet.v1')) || {};
+        return typeof w[id].cool === 'number' && w[id].cool > Date.now() && w[id].coolMin === 60;
+      } catch (e) { return false; }
+    })(), '');
+
+    /* 排产要跳过它，并且说出来 */
+    navTo('router');
+    q('#run-route').click();
+    var note = q('#route-out .cool-note');
+    add('路由页给出跳过说明', !!note, note ? txt(note).replace(/\s+/g, ' ').slice(0, 40) : 'missing');
+    add('跳过说明里点到具体平台', !!(note && txt(note).indexOf(name) >= 0), name);
+    add('被限流的平台不在主方案里', (function () {
+      var rows = qa('#route-out .route-plan .route-name');
+      for (var i = 0; i < rows.length; i++) if (txt(rows[i]).indexOf(name) === 0) return false;
+      return true;
+    })(), name);
+
+    /* 恢复 */
+    view = navTo('wallet');
+    var self = null;
+    qa('[data-wc]', view).forEach(function (x) { if (x.getAttribute('data-wc') === id) self = x; });
+    add('恢复前下拉仍指向 60', !!self && self.value === '60', self ? self.value : 'missing');
+    if (self) { self.value = '0'; self.dispatchEvent(new Event('change', { bubbles: true })); }
+    add('选不限流后冷却态清空', qa('.wcool.on', view).length === 0, qa('.wcool.on', view).length);
+    add('恢复后汇总不再提限流', !/限流中/.test(txt(q('#wallet-summary'))), '');
+    add('恢复后 localStorage 里没有残留字段', (function () {
+      try {
+        var w = JSON.parse(localStorage.getItem('quotaHub.wallet.v1')) || {};
+        return w[id].cool === undefined && w[id].coolMin === undefined;
+      } catch (e) { return false; }
+    })(), '');
+  }
+
+  /* ---------- 20. 接入通道：网关清单与三种导出 ---------- */
+  function s20() {
+    var view = navTo('access');
+    var cards = qa('.gw-card', view);
+    add('网关卡片 >= 5 家', cards.length >= 5, cards.length);
+    add('列了 OmniRoute 与 FreeLLMAPI',
+      /OmniRoute/.test(txt(view)) && /FreeLLMAPI/.test(txt(view)), '');
+
+    var exp = q('#acc-export');
+    add('导出区有三个入口', exp && qa('button', exp).length === 3,
+      exp ? qa('button', exp).length : 'missing');
+
+    /* 不臆造别家配置这件事必须写在页面上，否则下一个人会以为漏做了 */
+    var adapt = q('.gw-adapt', exp);
+    add('说明为什么不导别家原生配置', !!adapt && /\.env/.test(txt(adapt)),
+      adapt ? txt(adapt).replace(/\s+/g, ' ').slice(0, 34) : 'missing');
+
+    var dl = null, err = null;
+    var origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { dl = this.download || ''; };
+    var envBtn = q('#gw-env', exp);
+    try { if (envBtn) envBtn.click(); } catch (e) { err = e.message; }
+    HTMLAnchorElement.prototype.click = origClick;
+    add('导出通用 .env 触发下载', !!envBtn && dl === 'gateway.env', dl || err || 'no download');
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s16, s17];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();

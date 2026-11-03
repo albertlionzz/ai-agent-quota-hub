@@ -37,8 +37,9 @@
 | 能力画像 | 12 模型 × 9 维得分，每条挂评测来源与可信度分级 |
 | 我的额度 | 已开通清单、用量登记（算得出真实余量）、JSON 备份导出/导入 |
 | 重置日程 | 今天哪些额度会刷新、哪些只减不增、哪些周期未公示 |
-| 接入通道 | 两个问题给一条路（向导）、粘贴 key 生成配置命令、三类额度、五条路径、LiteLLM 网关配置 |
+| 接入通道 | 两个问题给一条路（向导）、粘贴 key 生成配置命令、三类额度、五条路径、五家网关对比、三种导出（LiteLLM yaml / runner / 通用 .env） |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自动探活与自检脚本导出 |
+| 我的额度 | 每家的用量登记 + **限流冷却**：429 之后按 15 分钟～1 天锁住，排产自动跳过并说明跳过谁 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
 
 ## 快速开始
@@ -52,7 +53,7 @@ cd quota-hub
 python build.py          # 产出 ../AI-Agent免费额度调度中台.html
 ```
 
-`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → WALLETIO → SCHEDULE → ONBOARD → CAP → PIPE → ORCH → ACCESS → PROBESNAP + PROBE → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
+`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → COOLDOWN → WALLETIO → SCHEDULE → ONBOARD → CAP → PIPE → ORCH → ACCESS → PROBESNAP + PROBE → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
 
 ## 自动探活（probe.json）
 
@@ -85,6 +86,27 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 想加 key 让探活变成真验证：仓库 Settings → Secrets and variables → Actions，按 `probe/endpoints.json` 里的 `env` 字段建同名 secret（如 `ZHIPUAI_API_KEY`）。没建的会按「无 key」处理，不会报错。
 
+## 限流冷却
+
+额度表回答的是「这个平台有多少量」，不回答「它此刻肯不肯收你」。真实使用里最常见的状态是 429：余额还在，但这一段时间它就是不接。
+
+「我的额度」每张卡都带一个冷却下拉（15 分钟 / 1 小时 / 6 小时 / 到明天），标了之后：
+
+- 卡片上显示「限流 · 剩 42 分钟」，KPI 汇总里单列「N 个限流中」；
+- **任务路由会把它从候选里摘掉**，并在结论下面写清跳过谁、还剩多久——静默少算一个平台比多算更坏，人会以为额度真的不够；
+- 到期自动恢复，不用手动解锁；导出的备份里带到期时间，换设备也还在。
+
+它刻意不叫「停用」：停用是人的决定，冷却是平台的决定，混在一起会让人以为是自己关掉的。
+
+## 网关导出：为什么没有 OmniRoute / FreeLLMAPI 的原生配置
+
+本页有五个网关的对比，但只导出 LiteLLM 的 `litellm_config.yaml`（外加一个只认单端点的 runner），以及一份**通用 `.env`**。
+
+原因不是偷懒：OmniRoute 的 provider 是在它自己的 Dashboard 里加的、凭据落在 `.env`（仓库只给 `.env.example`）；FreeLLMAPI 的批量导入入口同样是 `.env`。两家都没有公开、可校验的 YAML / JSON 配置 schema。照着猜写一份「看起来能用」的配置，比不写更坏——人会在那儿 debug 半天，最后发现格式本身就不对。
+
+所以导出的是三家都认的那一层：`平台_API_KEY=` + `OPENAI_BASE_URL`，剩下的步骤写在 `.env` 头部注释里。这份 `.env` 不依赖方案，随时可导——只想先把 key 按统一名字备好，不必先去排一个流水线。
+
+
 
 ## 测试
 
@@ -94,16 +116,17 @@ node test-route.js       # 路由分配不变量
 node test-pipeline.js    # 编排：模板 × 规模 × 模式全组合
 node test-export.js      # 导出脚本语法与要素
 node test-orch.js        # 总控 121 项断言
-node test-access.js      # 网关配置：真实 YAML 解析 + Python 编译（32 项）
+node test-access.js      # 网关配置：真实 YAML 解析 + Python 编译 + 通用 .env 变量合法性（48 项）
 node test-verify.js      # 接入核验 28 项：含「核验表 base 与端点表逐字一致」
 node test-usage.js       # 用量登记纯函数 48 项（解析 1.5万/200k、跨天归零、脏数据净化）
+node test-cooldown.js    # 限流冷却 32 项：到期边界、脏字段、非标准时长、排产跳过清单
 node test-palette.js     # 全局跳转 14 项：含「kimi 不能拖出 DeepSeek」假阳性回归
 node test-walletio.js    # 备份导入 22 项：坏输入全拒、脏字段清洗、合并语义
 node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 点倒计时边界
 node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本过 bash -n 与 PS 解析器
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
-python test-probe.py     # 探活脚本 27 项：分类语义、密钥不泄露、本地假服务器真实往返
-node smoke/run.js        # 浏览器冒烟 148 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
+python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
+node smoke/run.js        # 浏览器冒烟 216 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
 ```
 
 `test-probe.py` 用本地 `http.server` 造 200/401/404/500/超时五种端点，所以不需要外网、不碰任何真平台的账号。其中一条断言是：错误响应体里回显了 key 时必须被 `[redacted]` 掉。
@@ -126,7 +149,7 @@ probe.json                      自动探活结果（Actions 每 6 小时更新�
 docs/screenshot-overview.png    README 用的界面截图
 quota-hub/
   build.py                 注入式构建
-  test-*.js / test-probe.py 13 个测试文件
+  test-*.js / test-probe.py 14 个测试文件
   probe/
     gen_endpoints.js       从 verify.js 抽端点清单（--check 校验漂移）
     endpoints.json         生成的端点清单，别手改
@@ -147,6 +170,7 @@ quota-hub/
     verify.js              接入核验（23 家，端点表是探活的真相源）
     probe.js               探活结果卡片
     usage.js               用量登记纯函数（解析 / 余量 / 跨天归零）
+    cooldown.js            限流冷却（到期时间 / 剩余时间人话 / 排产跳过清单）
     walletio.js            备份导出/导入与校验
     schedule.js            重置日程分桶
     onboard.js             接入向导与配置脚本生成

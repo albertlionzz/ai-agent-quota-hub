@@ -212,6 +212,30 @@ const GATEWAYS = [
     verdict: '首选'
   },
   {
+    id: 'omniroute',
+    name: 'OmniRoute',
+    license: '开源 · 本地服务',
+    deploy: '本地 Node 服务，默认 localhost:20128/v1',
+    providers: '380 家 provider，含 150+ 免费档',
+    keyFeature: '一个端点吃掉所有通道：自动 fallback + 熔断 + 按 key 路由',
+    cost: '$0',
+    risk: '流量多一跳本地进程；provider 在 Dashboard 里配而不是改文件，配错了不容易发现。额度感知调度还在它自己的 roadmap 上，别当成已有能力。',
+    fit: '想把几十家免费档收敛成一个端点',
+    verdict: '覆盖最广'
+  },
+  {
+    id: 'freellmapi',
+    name: 'FreeLLMAPI',
+    license: '开源',
+    deploy: '桌面应用 / Docker 自托管',
+    providers: '34 家 provider，600+ 个免费端点',
+    keyFeature: '内置 key 健康检查 + 批量导入导出 + OpenAI 兼容端点',
+    cost: '$0',
+    risk: '项目年轻、迭代快，配置位置和接口会变；它自述的「每月多少 token」是理想口径，不能当容量承诺。',
+    fit: '不想折腾自托管，开箱就要一个兼容端点',
+    verdict: '上手最快'
+  },
+  {
     id: 'oneapi',
     name: 'One API / New API',
     license: '开源',
@@ -301,9 +325,26 @@ function suggestModelName(platformId) {
   return best ? best.name : '';
 }
 
-function buildGatewayConfig(plan) {
+/* 平台库里所有「有 OpenAI 兼容端点」的平台，给无方案的 .env 导出用。
+   顺序按平台库原序，不排序——用户按自己熟悉的顺序找比按字母找快。 */
+function allApiItems() {
+  return PLATFORMS
+    .filter(p => PIPE_BASE[p.id] && accessOf(p) === 'api')
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      env: p.id.toUpperCase().replace(/-/g, '_') + '_API_KEY',
+      base: PIPE_BASE[p.id],
+      model: 'FILL_ME'
+    }));
+}
+
+/* 把编排方案摊平成「能进网关的平台」清单。
+   LiteLLM 的 yaml 和通用 .env 共用这一份——两边各算一遍，
+   迟早会出现「yaml 里有、.env 里没有」，人只能怀疑数据错了。 */
+function gwItems(plan) {
   /* 编排方案用 assign/fallback，总控方案用 worker/reviewer。
-     网关两种都得能调，所以一并收进 model_list。 */
+     网关两种都得能调，所以一并收进清单。 */
   const seen = [];
   const add = a => {
     if (a && a.id && !seen.find(x => x.id === a.id)) seen.push(a);
@@ -336,6 +377,12 @@ function buildGatewayConfig(plan) {
     const p = byId(a.id);
     return { id: a.id, name: p ? p.name : a.id, kind: p ? accessOf(p) : 'web' };
   });
+
+  return { items, skipped, execChain };
+}
+
+function buildGatewayConfig(plan) {
+  const { items, skipped, execChain } = gwItems(plan);
 
   const lines = [];
   lines.push('# LiteLLM 配置 · 由「AI Agent 免费额度调度中台」自动生成');
@@ -404,6 +451,64 @@ function buildGatewayConfig(plan) {
   lines.push('# 2. 环境变量：');
   items.forEach(it => lines.push(`#    export ${it.env}=xxx`));
   lines.push('');
+
+  return lines.join('\n');
+}
+
+/* 通用 .env：LiteLLM / OmniRoute / FreeLLMAPI 三家都认的那一层。
+   为什么不做后两家的「原生配置」：
+     OmniRoute 的 provider 是在 Dashboard 里加的，凭据落 .env（仓库只给 .env.example）；
+     FreeLLMAPI 的批量导入入口同样是 .env。
+   两家都没有公开、可校验的 YAML/JSON schema。照着猜写一份「看起来能用」的配置，
+   比不写更坏——人会在那儿 debug 半天，最后发现格式本身就不对。
+   所以这里只导出确定成立的部分，剩下的写清「去哪一步做」。 */
+function buildGatewayEnv(plan) {
+  /* 没有方案也要能导出：有人只想先把各家 key 按统一名字备好，
+     不该被迫先去排一个方案。这时按平台库全量给。 */
+  const hasPlan = !!(plan && plan.stages);
+  const items = hasPlan ? gwItems(plan).items : allApiItems();
+  const skipped = hasPlan ? gwItems(plan).skipped
+    : PLATFORMS.filter(p => !(PIPE_BASE[p.id] && accessOf(p) === 'api'))
+      .map(p => ({ id: p.id, name: p.name, kind: accessOf(p) }));
+  const lines = [];
+  lines.push('# 通用 .env · 由「AI Agent 免费额度调度中台」自动生成');
+  lines.push('# ' + new Date().toISOString().slice(0, 16).replace('T', ' '));
+  lines.push('#');
+  lines.push('# 三家网关共用这一层（base_url + key），各自还差哪一步：');
+  lines.push('#   LiteLLM    → 需要同页导出的 litellm_config.yaml；这份 .env 只用来喂 api_key');
+  lines.push('#   OmniRoute  → npm install 后 cp .env.example .env，把下面几行并进去；');
+  lines.push('#                或启动后在 Dashboard 里逐个 provider 粘贴 key（二选一，别两边都改）');
+  lines.push('#   FreeLLMAPI → Settings 的批量导入认 KEY=value 这种形式，整段粘进去');
+  lines.push('#');
+  lines.push('# 这里刻意不放 model id：它不属于密钥，而且免费模型 id 每月都可能改名，');
+  lines.push('# 写进来只会让人误以为填完 key 就能跑。model id 在各家 yaml / 控制台里填。');
+  lines.push('');
+
+  if (!items.length) {
+    lines.push('# 当前方案里没有可进网关的平台（都是网页 / IDE / 原生协议类）。');
+    lines.push('# 先去「项目编排」换一版含 API 平台的方案。');
+    return lines.join('\n');
+  }
+
+  lines.push('# ---------- 平台密钥 ----------');
+  items.forEach(it => {
+    lines.push(`# ${it.name}`);
+    lines.push(`${it.env}=`);
+  });
+  lines.push('');
+
+  lines.push('# ---------- 网关入口（按你实际启动的那家，只留一行生效）----------');
+  lines.push('# LiteLLM 默认 4000 / OmniRoute 默认 20128 / FreeLLMAPI 装好后看它自己的端口');
+  lines.push('OPENAI_BASE_URL=http://localhost:4000/v1');
+  lines.push('OPENAI_API_KEY=sk-anything    # 网关自己的 master key，不是上游厂商的 key');
+  lines.push('');
+
+  if (skipped.length) {
+    lines.push('# ---------- 进不了网关的平台 ----------');
+    lines.push('# 网页 / IDE 类没有 OpenAI 兼容端点；原生协议类塞进 openai/ 只会 401。');
+    skipped.forEach(it => lines.push(`#   ${it.id}  (${it.name})`));
+    lines.push('');
+  }
 
   return lines.join('\n');
 }
@@ -625,17 +730,27 @@ function renderAccess() {
 
   /* —— 导出网关配置 —— */
   const plan = window.__pipe || window.__orch;
+  const hasPlan = !!(plan && plan.stages);
   const btn = $('#acc-export');
-  if (plan && plan.stages) {
-    btn.innerHTML = `
+  btn.innerHTML = `
+    ${hasPlan ? `
       <button class="run-btn" id="gw-cfg" style="width:auto;padding:8px 18px">导出 litellm_config.yaml</button>
-      <button class="run-btn ghost-btn" id="gw-py" style="width:auto;padding:8px 18px">导出网关版 run_gateway.py</button>
-      <span class="ap-hint">基于当前编排方案（${esc(plan.tpl.name)}）生成</span>`;
+      <button class="run-btn ghost-btn" id="gw-py" style="width:auto;padding:8px 18px">导出网关版 run_gateway.py</button>` : ''}
+    <button class="run-btn${hasPlan ? ' ghost-btn' : ''}" id="gw-env" style="width:auto;padding:8px 18px">导出通用 .env</button>
+    <span class="ap-hint">${hasPlan
+      ? `基于当前方案（${esc(plan.tpl.name)}）生成`
+      : '还没生成方案，.env 先按平台库全量导出'}</span>
+    <div class="gw-adapt">
+      换 <b>OmniRoute</b> 或 <b>FreeLLMAPI</b> 时不用重做一遍：拿「通用 .env」过去就行。
+      这两家的 provider 凭据都落在 <code>.env</code> 里，没有公开的 YAML / JSON 配置格式可导——
+      所以本页不臆造它们的配置文件，只导出确定成立的那一层，剩下的步骤写在 .env 头部注释里。
+    </div>`;
+  if (hasPlan) {
     $('#gw-cfg').addEventListener('click', () =>
       downloadFile('litellm_config.yaml', buildGatewayConfig(plan), 'text/yaml'));
     $('#gw-py').addEventListener('click', () =>
       downloadFile('run_gateway.py', buildGatewayRunner(plan), 'text/x-python'));
-  } else {
-    btn.innerHTML = `<span class="ap-hint">先去「项目编排」或「总控调度舱」生成一版方案，这里就能按方案导出网关配置。</span>`;
   }
+  $('#gw-env').addEventListener('click', () =>
+    downloadFile('gateway.env', buildGatewayEnv(plan), 'text/plain'));
 }

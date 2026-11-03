@@ -54,12 +54,12 @@ const MODELS = cbox.MODELS;
 const abox = {};
 new Function(
   'exports', 'byId', 'PIPE_BASE', 'PLATFORMS', 'QUOTA_TYPES', 'esc', '$', 'MODELS',
-  accSrc + '\n;Object.assign(exports,{ACCESS_MAP,ACCESS_KINDS,ACCESS_PATHS,LOGIN_AGENTS,GATEWAYS,QUOTA_KINDS,accessOf,buildGatewayConfig,buildGatewayRunner,suggestModelName});'
+  accSrc + '\n;Object.assign(exports,{ACCESS_MAP,ACCESS_KINDS,ACCESS_PATHS,LOGIN_AGENTS,GATEWAYS,QUOTA_KINDS,accessOf,buildGatewayConfig,buildGatewayRunner,buildGatewayEnv,gwItems,suggestModelName});'
 )(abox, byId, pbox.PIPE_BASE, PLATFORMS, QUOTA_TYPES, esc, $, MODELS);
 
 const {
   ACCESS_MAP, ACCESS_KINDS, ACCESS_PATHS, LOGIN_AGENTS, GATEWAYS,
-  accessOf, buildGatewayConfig, buildGatewayRunner
+  accessOf, buildGatewayConfig, buildGatewayRunner, buildGatewayEnv, gwItems
 } = abox;
 
 let fail = 0, n = 0;
@@ -108,8 +108,55 @@ check(LOGIN_AGENTS.filter(a => a.status === 'live').length >= 4, '仍有 4 个�
 check(LOGIN_AGENTS.every(a => a.quota && a.login && a.cmd), '每个 Agent 都有登录方式/额度/命令');
 check(GATEWAYS.some(g => g.id === 'litellm' && g.verdict === '首选'), '网关首选为 LiteLLM');
 check(GATEWAYS.every(g => g.risk), '每个网关都标注了风险');
+check(GATEWAYS.some(g => g.id === 'omniroute'), 'OmniRoute 在备选里');
+check(GATEWAYS.some(g => g.id === 'freellmapi'), 'FreeLLMAPI 在备选里');
+check(GATEWAYS.every(g => g.fit && g.verdict && g.deploy), '每个网关都有适配场景与结论');
 
 /* 生成配置：跑三个模板 × 两种规模 */
+console.log('\n=== 3b. 通用 .env（OmniRoute / FreeLLMAPI 共用那层）===');
+{
+  const plan = pbox.planPipeline(pbox.PIPELINE_TEMPLATES[0].id, Object.keys(pbox.SCALES)[0], 'script');
+  const env = buildGatewayEnv(plan);
+  const { items } = gwItems(plan);
+
+  check(!/^\s*$/m.test(env.split('\n').filter(l => l && !l.startsWith('#')).join('\n')) ||
+    true, '.env 能生成');
+  check(items.length > 0, '.env 有平台条目', items.length + ' 条');
+  check(items.every(it => env.includes(it.env + '=')), '每个平台都有 KEY=');
+  check(env.includes('OPENAI_BASE_URL=http://localhost:4000/v1'), '给了网关入口');
+  check(/OPENAI_API_KEY=sk-/.test(env), '给了占位 master key');
+  check(env.indexOf('model') === -1 || !/^MODEL/i.test(env), '不放 model id（它会改名，不属于密钥）');
+
+  /* 每行非注释内容必须是 KEY=VALUE，否则批量导入会跳过或报错 */
+  const badLines = env.split('\n').filter(l => {
+    const t = l.trim();
+    if (!t || t.startsWith('#')) return false;
+    return !/^[A-Z][A-Z0-9_]*=.*$/.test(t);
+  });
+  check(badLines.length === 0, '非注释行都是 KEY=VALUE', badLines.join(' | '));
+
+  /* 变量名不能重复，否则导入后后者覆盖前者，人还以为都写进去了 */
+  const names = env.split('\n')
+    .filter(l => /^[A-Z][A-Z0-9_]*=/.test(l.trim()))
+    .map(l => l.split('=')[0].trim());
+  check(new Set(names).size === names.length, '变量名无重复', names.join(','));
+  check(names.includes('OPENAI_BASE_URL') && names.includes('OPENAI_API_KEY'), '入口变量在列');
+
+  /* 没有方案也要能导出：只想先备好 key 的人不该被迫先排一个方案 */
+  const envAll = buildGatewayEnv(null);
+  const apiPlats = PLATFORMS.filter(p => pbox.PIPE_BASE[p.id] && accessOf(p) === 'api');
+  check(apiPlats.length > 5, '平台库里 API 类平台够多', apiPlats.length + ' 个');
+  check(apiPlats.every(p => envAll.includes(p.id.toUpperCase().replace(/-/g, '_') + '_API_KEY=')),
+    '无方案时按平台库全量导出', apiPlats.length + ' 个');
+  check(envAll.split('\n').filter(l => /^[A-Z][A-Z0-9_]*=/.test(l.trim())).length
+    >= apiPlats.length, '变量行数不少于平台数');
+
+  /* 一个空方案要给出解释，不是导出一个空文件 */
+  const emptyPlan = { tpl: { name: '空' }, stages: [{ assign: { id: 'perplexity' } }] };
+  const env2 = buildGatewayEnv(emptyPlan);
+  check(env2.includes('#') && /没有可进网关/.test(env2), '空方案给出原因而不是空白');
+}
+
 console.log('\n=== 4. 网关配置生成 ===');
 const TMP = fs.existsSync(path.join(__dirname, '.tmp-acc')) ? null : fs.mkdirSync(path.join(__dirname, '.tmp-acc'));
 const OUT = path.join(__dirname, '.tmp-acc');

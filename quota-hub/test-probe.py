@@ -118,6 +118,73 @@ T('403 说「缺 API key」→ 归 auth，不归被拒绝', lambda: (lambda r: e
 T('403 说「缺 API key」但带了 key → 归 badkey', lambda: (lambda r: eq(r['status'], 'badkey'))(probe.probe_one(ep('/gk/models'), key='sk-abcdefghijklmnop')))
 T('403 只说 Access denied → 保持 forbidden', lambda: (lambda r: eq(r['status'], 'forbidden'))(probe.probe_one(ep('/deny/models'))))
 T('超时归 unreachable', lambda: (lambda r: eq(r['status'], 'unreachable'))(probe.probe_one(ep('/slow/models'), timeout=0.3)))
+print('代理隔离')
+
+
+class P(BaseHTTPRequestHandler):
+    """假装成代理：任何请求都回 502 Connect failed。
+    如果探活把环回地址也交给代理，结果就会变成这个 502。"""
+
+    def do_GET(self):
+        self.fail()
+
+    def do_POST(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        if n:
+            self.rfile.read(n)
+        self.fail()
+
+    def fail(self):
+        raw = json.dumps({'error': 'upstream connect failed'}).encode()
+        self.send_response(502)
+        self.send_header('Content-Length', str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def log_message(self, *a):
+        pass
+
+
+psrv = HTTPServer(('127.0.0.1', 0), P)
+PPROX = 'http://127.0.0.1:%d' % psrv.server_address[1]
+threading.Thread(target=psrv.serve_forever, daemon=True).start()
+
+
+def with_proxy(fn):
+    keys = ('HTTP_PROXY', 'http_proxy', 'HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy')
+    old = {k: os.environ.get(k) for k in keys}
+    for k in keys:
+        os.environ[k] = PPROX
+    try:
+        return fn()
+    finally:
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def loopback_ignores_proxy():
+    r = with_proxy(lambda: probe.probe_one(
+        {'id': 'y', 'base': 'http://127.0.0.1:9', 'path': '/models', 'probe': 'models', 'env': 'Y'}))
+    eq(r['status'], 'unreachable', '走了代理会变成代理那个 502；实际')
+    assert_true(r.get('http') != 502, '拿到的是代理的 502，说明环回地址没绕开代理')
+
+
+def loopback_ok_still_ok():
+    r = with_proxy(lambda: probe.probe_one(ep('/ok/models')))
+    eq(r['status'], 'ok', '环回探活被代理带偏；实际')
+    eq(r.get('models'), 3)
+
+
+T('环回地址不走系统代理', loopback_ignores_proxy)
+T('设了代理时本机端点仍能正常探活', loopback_ok_still_ok)
+T('非环回地址照旧用代理（代理回 502 → 归 server/unreachable 而不是 ok）', lambda: (
+    eq(with_proxy(lambda: probe.probe_one(
+        {'id': 'z', 'base': 'http://example.invalid', 'path': '/models', 'probe': 'models', 'env': 'Z'}))['status'],
+        'unreachable')))
+
 T('连不上的端口归 unreachable', lambda: (lambda r: eq(r['status'], 'unreachable'))(
     probe.probe_one({'id': 'y', 'base': 'http://127.0.0.1:9', 'path': '/models', 'probe': 'models', 'env': 'Y'})))
 

@@ -17,6 +17,7 @@ orch = (ASSETS / "orchestrator.js").read_text(encoding="utf-8")
 access = (ASSETS / "access.js").read_text(encoding="utf-8")
 verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
 usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
+cooldown = (ASSETS / "cooldown.js").read_text(encoding="utf-8")
 palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
 walletio = (ASSETS / "walletio.js").read_text(encoding="utf-8")
 schedule = (ASSETS / "schedule.js").read_text(encoding="utf-8")
@@ -47,9 +48,10 @@ else:
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
 # access 依赖 pipeline 的 PIPE_BASE 端点表，两者都必须排在 pipeline 之后；
 # verify 依赖 pipeline 的 downloadFile/copyText，同样必须排在 pipeline 之后。
-# usage 是无依赖纯函数，放最前面，方便 renderWallet 与测试共同使用。
+# usage / cooldown 都是无依赖纯函数，放最前面，方便 renderWallet 与测试共同使用。
 for ph, payload in [
     ("/*__USAGE__*/", usage),
+    ("/*__COOLDOWN__*/", cooldown),
     ("/*__WALLETIO__*/", walletio),
     ("/*__SCHEDULE__*/", schedule),
     ("/*__ONBOARD__*/", onboard),

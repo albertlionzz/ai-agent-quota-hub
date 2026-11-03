@@ -483,9 +483,17 @@
     const perReq = inTok + outTok;
     const demand = reqs * perReq;
 
-    /* 候选：支持该任务、且额度可量化 */
+    /* 冷却中的平台先摘掉：额度还在，但现在派过去只会拿到 429。
+       摘掉之后必须显式说出来，否则人只会看到「可选平台少了」，
+       以为是自己额度不够，转头去开新号。 */
+    const nowMs = Date.now();
+    const coolOff = coolSkipNote(state.wallet, byId, nowMs);
+    const coolIds = new Set(coolOff.map(x => x.id));
+
+    /* 候选：支持该任务、不在冷却、且额度可量化 */
     const cands = PLATFORMS
       .filter(p => (p.tags || []).includes(task))
+      .filter(p => !coolIds.has(p.id))
       .map(p => {
         const { cap, basis, maxReq } = dailyCapacity(p, inTok, outTok);
         const qt = QUOTA_TYPES[p.quotaType];
@@ -561,6 +569,11 @@
         <div class="db-item"><b>${fmt(covered)}</b><span>免费可覆盖</span></div>
       </div>
       <div class="verdict ${verdictCls}">${verdictHtml}</div>
+      ${coolOff.length ? `<div class="cool-note">
+        <b>已跳过 ${coolOff.length} 个限流中的平台</b>（额度还在，但此刻派过去只会拿到 429）：
+        ${coolOff.map(x => `${esc(x.name)} 剩 ${esc(x.label)}`).join('、')}。
+        它们到期后会自动回到候选里，不用手动恢复。
+      </div>` : ''}
       <div class="route-plan">
         ${plan.length ? plan.map((c, i) => {
           const pctOfDemand = Math.round((c.take / demand) * 100);
@@ -611,7 +624,34 @@
   /* ============================================================
      视图：我的额度
      ============================================================ */
+  /* 冷却控件：一个下拉框解决「现在能不能派活给这个平台」。
+     不做弹层是因为列表里可能同时有好几个在冷却，弹层会遮住别的卡片；
+     行内状态改完立刻看得见，也不必处理点外面关闭那套逻辑。 */
+  function coolHtml(id, name, w, now) {
+    const left = coolLeft(w, now);
+    const cv = coolSelectValue(w, now);
+    /* 下拉框只放时长：「限流」两个字已经由左侧标签说了，
+       下拉里再带一遍会变成「限流 · 剩 1 小时 ｜ 限流 1 小时」，同一句话说两次。 */
+    const opts = [`<option value="0"${cv === '0' ? ' selected' : ''}>不限流</option>`]
+      .concat(COOL_PRESETS.map(p =>
+        `<option value="${p.min}"${cv === String(p.min) ? ' selected' : ''}>${esc(p.label)}</option>`));
+    /* 导入来的非标准时长也要显示出来，否则下拉框会跳回「不限流」，
+       等于骗人说这个平台是正常的。 */
+    if (cv === 'custom') opts.push(`<option value="custom" selected>${esc(fmtCool(left))}</option>`);
+    /* 正常状态不显示标签：下拉框里已经写着「不限流」，再挂一个「正常」
+       就是同一个信息说两遍，列表一长全是噪音。 */
+    return `<div class="wcool${left ? ' on' : ''}">
+      ${left ? `<span class="wcool-chip">限流 · 剩 ${esc(fmtCool(left))}</span>` : ''}
+      <select class="wcool-sel" data-wc="${id}" aria-label="${esc(name)} 的限流冷却">${opts.join('')}</select>
+    </div>`;
+  }
+
   function renderWallet() {
+    const now = Date.now();
+    /* 到期的冷却先清掉再渲染，否则卡片会挂着一个已经过去的倒计时 */
+    const pruned = pruneCool(state.wallet, now);
+    if (pruned.changed) { state.wallet = pruned.wallet; saveWallet(); }
+
     const entries = Object.entries(state.wallet).filter(([id]) => byId(id));
     /* 角标统一在这里同步：增删/停用/导入都走 renderWallet，
        之前只在 init 与导入时设置，手工增删后数字会一直是旧的。 */
@@ -647,6 +687,7 @@
           <div class="wright">
             <span class="chip ${qt.color}">${esc(qt.short)}</span>
             <div class="wreset">${esc(ri.text)}<small>${esc(ri.sub)}</small></div>
+            ${coolHtml(id, p.name, w, now)}
             <button class="drawer-close" data-wd="${id}" aria-label="移除" style="width:24px;height:24px;flex:0 0 24px">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="width:11px;height:11px"><path d="M4 4l8 8M12 4l-8 8"/></svg>
             </button>
@@ -667,11 +708,14 @@
     /* 汇总：一次性额度必须扣掉已用，否则「余量」两个字是假的（旧版按 tokensTotal 直接显示） */
     const activeEntries = entries.filter(([, w]) => w.enabled);
     const t = walletTotals(activeEntries, byId);
+    /* 冷却中的平台额度还在，但现在派不动活。数量单列，
+       否则「已启用 8 个」会让人以为这 8 个都能用。 */
+    const coolingN = activeEntries.filter(([, w]) => isCooling(w, now)).length;
 
     $('#wallet-summary').innerHTML = `
       <div class="kpi"><div class="k-label">已启用</div>
         <div class="k-val">${activeEntries.length}<small>个</small></div>
-        <div class="k-foot">清单共 ${entries.length} 个</div></div>
+        <div class="k-foot">清单共 ${entries.length} 个${coolingN ? ` · <b style="color:var(--amber)">${coolingN} 个限流中</b>` : ''}</div></div>
       <div class="kpi"><div class="k-label">可再生日额度</div>
         <div class="k-val k-green">${fmt(t.renewCap)}<small>tok/日</small></div>
         <div class="k-foot">每天回到满血的部分</div></div>
@@ -693,6 +737,16 @@
     }));
     $$('[data-wd]').forEach(b => b.addEventListener('click', () => {
       delete state.wallet[b.dataset.wd];
+      saveWallet(); renderWallet();
+    }));
+    /* 冷却：选 0 就是恢复正常。'custom' 是导入来的时长，选中它本身不改状态。 */
+    $$('[data-wc]').forEach(sel => sel.addEventListener('change', () => {
+      const id = sel.dataset.wc;
+      const v = sel.value;
+      if (v === 'custom') return;
+      state.wallet[id] = v === '0'
+        ? clearCool(state.wallet[id])
+        : setCool(state.wallet[id], Number(v));
       saveWallet(); renderWallet();
     }));
     /* 用量登记：失焦或回车提交。解析不了就回退原值并闪一下红框，
@@ -911,6 +965,8 @@
   }
 
   /*__USAGE__*/
+
+  /*__COOLDOWN__*/
 
   /*__SCHEDULE__*/
 
