@@ -932,7 +932,8 @@
     router:   { title: '任务路由', sub: '按需求量算出免费方案', render: () => { renderRouterForm(); runRoute(); } },
     wallet:   { title: '我的额度', sub: '已开通清单与重置节奏', render: renderWallet },
     schedule: { title: '重置日程', sub: '谁今天刷新、谁只减不增', render: renderSchedule },
-    intel:    { title: '情报与避坑', sub: '政策变更时间线', render: renderIntel }
+    intel:    { title: '情报与避坑', sub: '政策变更时间线', render: renderIntel },
+    crosscheck: { title: '交叉校验', sub: '多来源口径比对', render: renderCrosscheck }
   };
 
   function switchView(v) {
@@ -983,6 +984,8 @@
   /*__PROBESNAP__*/
   /*__PROBE__*/
   /*__VERIFY__*/
+
+  /*__CROSSCHECK__*/
 
   /*__PALETTE__*/
 

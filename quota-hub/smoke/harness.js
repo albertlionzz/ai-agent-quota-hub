@@ -30,7 +30,7 @@
   /* ---------- 1. 十一个视图全部可达，且只有一个处于激活态 ---------- */
   function s1() {
     var navs = qa('.nav-item[data-v]');
-    add('侧栏导航项 = 11 个', navs.length === 11, navs.length);
+    add('侧栏导航项 = 12 个', navs.length === 12, navs.length);
     var bad = [];
     navs.forEach(function (b) {
       var v = b.getAttribute('data-v');
@@ -373,7 +373,24 @@
     add('导出通用 .env 触发下载', !!envBtn && dl === 'gateway.env', dl || err || 'no download');
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s16, s17];
+  /* ---------- 21. 交叉校验：表 / 冲突高亮 / 过滤 ---------- */
+  function s21() {
+    var view = navTo('crosscheck');
+    var rows = qa('#view-crosscheck .cc-table tbody tr', view);
+    add('交叉校验表渲染 23 行', rows.length === 23, rows.length);
+    var conflict = qa('#view-crosscheck .cc-row-conflict', view);
+    add('冲突行高亮 = 2（DeepSeek / Kimi）', conflict.length === 2, conflict.length);
+    var kpis = qa('#view-crosscheck .kpi', view);
+    add('KPI 卡片齐全（5 个）', kpis.length === 5, kpis.length);
+    var fbtn = qa('#view-crosscheck .cc-f', view).filter(function (x) {
+      return x.getAttribute('data-ccf') === 'conflict';
+    })[0];
+    if (fbtn) fbtn.click();
+    var after = qa('#view-crosscheck .cc-table tbody tr', view);
+    add('「冲突」过滤只留 2 行', after.length === 2, after.length);
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s16, s17];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();

@@ -522,6 +522,41 @@ select { font-family: var(--sans); }
 .pit b { font-size: 12.5px; font-weight: 650; display: block; margin-bottom: 5px; }
 .pit p { font-size: 12px; color: var(--ink-2); line-height: 1.6; }
 
+/* ================= 交叉校验 ================= */
+.cc-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.cc-f {
+  font: inherit; font-size: 12.5px; cursor: pointer;
+  background: var(--card); color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 13px; transition: all .15s;
+}
+.cc-f:hover { border-color: var(--accent); color: var(--ink); }
+.cc-f.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cc-f b { font-family: var(--mono); margin-left: 3px; }
+
+.cc-wrap { padding: 0; overflow-x: auto; }
+.cc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 920px; }
+.cc-table th {
+  text-align: left; font-weight: 600; color: var(--ink-3);
+  padding: 11px 13px; border-bottom: 1px solid var(--line);
+  background: var(--bg-alt); white-space: nowrap; position: sticky; top: 0;
+}
+.cc-table td { padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cc-table tr:last-child td { border-bottom: none; }
+.cc-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.cc-cell { display: flex; flex-direction: column; gap: 5px; min-width: 168px; }
+.cc-claim { color: var(--ink-2); line-height: 1.5; font-size: 11.5px; }
+.cc-muted { color: var(--ink-3); }
+.cc-relay { color: var(--ink-2); line-height: 1.5; min-width: 150px; font-size: 11.5px; }
+.cc-row-conflict { background: var(--red-soft); }
+.cc-row-conflict:hover { background: var(--red-soft); }
+.cc-note {
+  margin-top: 14px; padding: 13px 16px; font-size: 12px; line-height: 1.7;
+  color: var(--ink-2); background: var(--bg-alt);
+  border: 1px solid var(--line); border-radius: var(--r); border-left: 3px solid var(--accent);
+}
+.cc-note b { color: var(--ink); }
+
 /* ================= 策略卡 ================= */
 .strategy {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));

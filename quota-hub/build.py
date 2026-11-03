@@ -16,6 +16,7 @@ cap = (ASSETS / "capability.js").read_text(encoding="utf-8")
 orch = (ASSETS / "orchestrator.js").read_text(encoding="utf-8")
 access = (ASSETS / "access.js").read_text(encoding="utf-8")
 verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
+crosscheck = (ASSETS / "crosscheck.js").read_text(encoding="utf-8")
 usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
 cooldown = (ASSETS / "cooldown.js").read_text(encoding="utf-8")
 palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
@@ -62,6 +63,7 @@ for ph, payload in [
     ("/*__PROBESNAP__*/", probe_snapshot),
     ("/*__PROBE__*/", probe),
     ("/*__VERIFY__*/", verify),
+    ("/*__CROSSCHECK__*/", crosscheck),
     ("/*__PALETTE__*/", palette),
 ]:
     if app.count(ph) != 1:
