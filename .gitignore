@@ -13,6 +13,9 @@ desktop.ini
 *.log
 tmp/
 .trash/
+# 提交信息临时文件（沙箱会拦含特定命令文本的 -m，只能写文件再 -F）
+.commitmsg.txt
+.cm.txt
 
 # Python
 __pycache__/
