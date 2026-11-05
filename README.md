@@ -39,7 +39,7 @@
 | 重置日程 | 今天哪些额度会刷新、哪些只减不增、哪些周期未公示 |
 | 接入通道 | 两个问题给一条路（向导）、粘贴 key 生成配置命令、三类额度、五条路径、五家网关对比、三种导出（LiteLLM yaml / runner / 通用 .env） |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自动探活与自检脚本导出 |
-| 交叉校验 | 本项目 vs FreeToken(2026-10-22) / free-llm-intel(2026-11-03) 多来源口径并列比对，冲突高亮（DeepSeek / Kimi 等），另有 justjavac/free-models 中转覆盖维度 |
+| 交叉校验 | 三源口径并列比对 + 冲突高亮；顶部「数据新鲜度」条列三源核实日期与最近探活；点厂商名跳接入核验、核验卡片可跳回；平台库 22 张卡片带轻量角标 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
 
 ## 快速开始
@@ -110,7 +110,11 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 单条「口径冲突」文字容易变成各说各话。交叉校验视图把本项目的接入结论，与两个独立社区追踪源逐家并列：**FreeToken**（`data/providers.json`，2026-10-22 复核，带 `verified` 状态）与 **free-llm-intel**（每日巡检 70 家官网，2026-11-03 巡检）。另有 **justjavac/free-models**（只收「有免费档」的中转站）作为「中转覆盖」补充维度——它是另一轴（哪些中转站提供免费层），不进冲突判定。
 
-判定只比对「有定论」的来源：把每个来源归一为 `free / trial / none / unknown`，两边定论互斥即标 **冲突**（目前 DeepSeek、Kimi 两处——前者本项目记「有试用金」而 free-llm-intel 称「无免费模型层」，后者本项目记「API 无免费」而 free-llm-intel 列出 15 元代金券）；本项目的 `disputed` 而外部也无定论的归 **待核**（OpenAI、xAI）；外部未收录的归 **仅本项目覆盖**（其余 10 家）。这比任何单方口径都更可信，也诚实标出了本项目的独特覆盖。
+判定只比对「有定论」的来源：把每个来源归一为 `free / trial / none / unknown`，两边定论互斥即标 **冲突**（DeepSeek、Kimi 两处——前者本项目记「有试用金」而 free-llm-intel 称「无免费模型层」，后者本项目记「API 无免费」而 free-llm-intel 列出 15 元代金券）；外部也无定论的归 **待核**（OpenAI、xAI、LongCat 共 3 家）；外部未收录的归 **仅本项目覆盖**（9 家）；余下 9 家三方一致。这比任何单方口径都更可信，也诚实标出了本项目的独特覆盖。
+
+**三处联动**：接入核验卡片对冲突厂商直接列出两个外部来源的说法，可一键跳到三方比对；交叉校验页点厂商名按 id 跳回核验卡片并高亮。平台库 48 家里只有 22 家能映射到接入总表（Meta Llama 无对应条目，网页版 / 编程工具 / 礼包类不在「官方免费 API」这一轴），所以只给这 22 家加轻量角标，不假装全覆盖。
+
+**数据新鲜度**：页面顶部列出本项目口径日期、三个外部来源的核实 / 巡检时间戳和最近一次端点探活。`quota-hub/probe/sources.py` 由 `probe.yml` 每 6 小时跑一次，只抓三源公开的时间戳（FreeToken 台账 `updated`、free-llm-intel README 巡检戳、free-models 的 HTTP 时间头），**不解析额度内容**——脚本替不了人判断谁说得对。抓不到就标 `unreachable` 并沿用基线日期，不假装更新过。探活与口径是两种新鲜度：探活只证明端点接得通，不更新任何额度数字。
 
 
 
@@ -132,8 +136,9 @@ node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 �
 node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本过 bash -n 与 PS 解析器
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
 python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
-node test-crosscheck.js  # 双源交叉校验 18 项：立场归一、判定（一致/冲突/缺口/仅覆盖）、分布加总
-node smoke/run.js        # 浏览器冒烟 232 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
+python test-sources.py   # 来源时间戳 13 项：离线兜底、字段解析、单源失败隔离、产物结构
+node test-crosscheck.js  # 双源交叉校验 40 项：立场归一、判定、新鲜度、联动、平台库 id 映射
+node smoke/run.js        # 浏览器冒烟 324 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
 ```
 
 `test-probe.py` 用本地 `http.server` 造 200/401/404/500/超时五种端点，所以不需要外网、不碰任何真平台的账号。其中一条断言是：错误响应体里回显了 key 时必须被 `[redacted]` 掉。
@@ -151,16 +156,18 @@ AI-Agent免费额度调度中台.html   构建产物（单文件）
 AI-Agent免费额度调研报告.md      11 章调研报告
 GitHub同类项目调研.md            11 个同类项目的定位与能力矩阵
 probe.json                      自动探活结果（Actions 每 6 小时更新）
+crosscheck-sources.json         三源时间戳快照（Actions 每 6 小时复核）
 .github/workflows/pages.yml     push 后自动发布到 GitHub Pages
-.github/workflows/probe.yml     每 6 小时探活并提交 probe.json
+.github/workflows/probe.yml     每 6 小时探活 + 复核来源时间戳并提交
 docs/screenshot-overview.png    README 用的界面截图
 quota-hub/
   build.py                 注入式构建
-  test-*.js / test-probe.py 14 个测试文件
+  test-*.js / test-*.py 16 个测试文件
   probe/
     gen_endpoints.js       从 verify.js 抽端点清单（--check 校验漂移）
     endpoints.json         生成的端点清单，别手改
     probe.py               探活脚本（stdlib，无依赖）
+    sources.py             来源时间戳复核（stdlib，无依赖）
   smoke/
     harness.js             注入页面的冒烟脚本
     run.js                 无头浏览器执行器（4 场景）
@@ -181,6 +188,7 @@ quota-hub/
     walletio.js            备份导出/导入与校验
     schedule.js            重置日程分桶
     onboard.js             接入向导与配置脚本生成
+    crosscheck.js          双源交叉校验（判定 / 新鲜度 / 联动 / 平台库角标）
     palette.js             Ctrl+K 全局跳转
 ```
 

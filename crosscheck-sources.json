@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "fetchedAt": "2026-11-05T15:13:55Z",
+  "runner": "local",
+  "note": "只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。",
+  "sources": [
+    {
+      "id": "freetoken",
+      "name": "FreeToken",
+      "checkedAt": "2026-10-22",
+      "axis": "额度口径",
+      "url": "https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json",
+      "status": "offline",
+      "note": "离线模式，沿用基线日期"
+    },
+    {
+      "id": "intel",
+      "name": "free-llm-intel",
+      "checkedAt": "2026-11-03",
+      "axis": "额度口径",
+      "url": "https://github.com/rockbenben/free-llm-intel",
+      "status": "offline",
+      "note": "离线模式，沿用基线日期"
+    },
+    {
+      "id": "relays",
+      "name": "justjavac/free-models",
+      "checkedAt": null,
+      "axis": "中转覆盖",
+      "url": "https://models.denohub.com/catalog.json",
+      "status": "offline",
+      "note": "离线模式，沿用基线日期"
+    }
+  ]
+}

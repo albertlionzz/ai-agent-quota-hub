@@ -44,6 +44,21 @@ if snapshot_path.exists():
 else:
     probe_snapshot = "const PROBE_SNAPSHOT = null;"
 
+# 交叉校验引用的三个外部来源，其公开核实/巡检时间戳由 sources.py 在 CI 每 6 小时复核。
+# 和 probe.json 一样内联进产物：file:// 下读不到同目录文件，没快照就只剩静态日期。
+cc_sources_path = ROOT.parent / "crosscheck-sources.json"
+if cc_sources_path.exists():
+    try:
+        _ccs = json.loads(cc_sources_path.read_text(encoding="utf-8"))
+        cc_sources = "const CC_SOURCES_SNAPSHOT = " + json.dumps(
+            _ccs, ensure_ascii=False, separators=(",", ":")
+        ).replace("</", "<\\/") + ";"
+    except Exception as exc:
+        print(f"警告：crosscheck-sources.json 解析失败，跳过注入（{exc}）")
+        cc_sources = "const CC_SOURCES_SNAPSHOT = null;"
+else:
+    cc_sources = "const CC_SOURCES_SNAPSHOT = null;"
+
 
 # 模块必须注入到 app.js 的 IIFE 内部，才能共用 $ / esc / PLATFORMS 等。
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
@@ -63,6 +78,7 @@ for ph, payload in [
     ("/*__PROBESNAP__*/", probe_snapshot),
     ("/*__PROBE__*/", probe),
     ("/*__VERIFY__*/", verify),
+    ("/*__CCSOURCES__*/", cc_sources),
     ("/*__CROSSCHECK__*/", crosscheck),
     ("/*__PALETTE__*/", palette),
 ]:

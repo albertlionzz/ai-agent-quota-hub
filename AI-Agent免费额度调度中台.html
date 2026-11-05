@@ -564,6 +564,75 @@ select { font-family: var(--sans); }
 }
 .cc-note b { color: var(--ink); }
 
+/* --- 数据新鲜度条 --- */
+.cc-fresh { padding: 14px 16px; margin-bottom: 14px; }
+.cc-fresh-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 11px; }
+.cc-fresh-head b { font-size: 13px; }
+.cc-fresh-head > span { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+.cc-fresh-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 8px;
+}
+.cc-fresh-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 9px 11px; background: var(--bg-alt);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.cc-fresh-item > b { font-size: 12px; color: var(--ink); }
+.cc-fresh-meta { font-size: 11px; color: var(--ink-3); font-family: var(--mono); line-height: 1.5; }
+.cc-fresh-item em { font-size: 10.5px; color: var(--amber); font-style: normal; line-height: 1.4; }
+.cc-fresh-note { margin: 11px 0 0; font-size: 11.5px; color: var(--ink-2); line-height: 1.65; }
+.cc-fresh-note b { color: var(--ink); }
+
+/* --- 表内跳转 / 焦点高亮 --- */
+.cc-link {
+  font: inherit; font-weight: 600; color: var(--ink); text-align: left;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.cc-link span { color: var(--accent); font-weight: 400; }
+.cc-link:hover { color: var(--accent); text-decoration: underline; }
+.cc-focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+tr.cc-focus { background: var(--blue-soft) !important; }
+.cc-jump {
+  font: inherit; font-size: 11.5px; color: var(--accent); cursor: pointer;
+  background: none; border: 0; padding: 2px 0; white-space: nowrap;
+}
+.cc-jump:hover { text-decoration: underline; }
+.cc-jump.sm { font-size: 11px; }
+
+/* --- 平台库轻量角标 --- */
+.cc-badge {
+  font-size: 10px; line-height: 1.5; padding: 1px 6px; border-radius: 5px;
+  white-space: nowrap; cursor: pointer; font-weight: 600;
+  background: var(--bg-alt); color: var(--ink-2); border: 1px solid var(--line);
+}
+.cc-badge:hover { border-color: var(--accent); color: var(--accent); }
+.cc-badge-conflict { background: var(--red-soft); color: var(--red); border-color: transparent; }
+.cc-badge-gap, .cc-badge-unknown { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+.cc-badge-agree { background: var(--green-soft); color: var(--green); border-color: transparent; }
+.cc-badge-solo { background: var(--bg-alt); color: var(--ink-3); }
+
+/* --- 接入核验卡片里的外部证据块 --- */
+.vcc {
+  margin-top: 9px; padding: 10px 12px; border-radius: 7px;
+  background: var(--amber-soft); border-left: 3px solid var(--amber);
+}
+.vcc > i {
+  display: block; font-style: normal; font-size: 11.5px; font-weight: 650;
+  color: var(--ink); margin-bottom: 6px;
+}
+.vcc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.vcc li { font-size: 11.5px; line-height: 1.55; color: var(--ink-2); }
+.vcc li b { color: var(--ink); font-weight: 650; margin-right: 6px; }
+.vcc p { font-size: 11.5px; color: var(--ink-2); }
+.vcc-foot {
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line);
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  font-size: 11px; color: var(--ink-2);
+}
+.vcc-foot .cc-jump { margin-left: auto; }
+.vcard.cc-cross-conflict { box-shadow: inset 3px 0 0 var(--red); }
+.vconf .cc-jump { display: block; margin-top: 5px; }
+
 /* ================= 策略卡 ================= */
 .strategy {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
@@ -2208,8 +2277,9 @@ kbd,
     <!-- ---------- 平台库 ---------- -->
     <section class="view" id="view-registry">
       <div class="filters" id="filter-bar"></div>
-      <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 10px">
+      <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 10px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--ink-3)">共 <b id="result-count" style="color:var(--ink);font-family:var(--mono)">0</b> 个结果 · 点击卡片看详情</span>
+        <span id="cc-cover" style="font-size:12px;color:var(--ink-3);margin-left:auto"></span>
       </div>
       <div class="platform-grid" id="platform-grid"></div>
     </section>
@@ -3807,6 +3877,22 @@ const DEFAULT_WALLET = {
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
+    /* 交叉校验只覆盖「接入总表」那 23 家；网页版 / 编程工具 / 礼包类条目
+       不在「官方免费 API」这一轴，不给它们硬套标记，也不假装覆盖 48 家。 */
+    const ccCover = $('#cc-cover');
+    if (ccCover && typeof CROSSCHECK !== 'undefined') {
+      const ids = new Set(PLATFORMS.map(p => p.id));
+      const covered = CROSSCHECK.filter(c => ids.has(c.id)).length;
+      const conflicts = CROSSCHECK.filter(c => ids.has(c.id) && ccVerdict(c).key === 'conflict').length;
+      ccCover.innerHTML = `交叉校验覆盖 <b>${covered}</b> / ${PLATFORMS.length} 家` +
+        (conflicts ? ` · <b style="color:var(--red)">${conflicts} 处冲突</b>` : '') +
+        ` · <button class="cc-jump sm" id="cc-cover-go">三方比对 →</button>`;
+      const go = $('#cc-cover-go');
+      if (go) go.addEventListener('click', () => {
+        if (typeof switchView === 'function') switchView('crosscheck');
+      });
+    }
+
     if (!list.length) {
       $('#platform-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1">
         <div>没有匹配的平台，试试放宽筛选或清空搜索。</div></div>`;
@@ -3817,7 +3903,8 @@ const DEFAULT_WALLET = {
       const qt = QUOTA_TYPES[p.quotaType];
       const flags = [
         p.needsCard ? '' : `<span class="ital" title="无需信用卡">免卡</span>`,
-        p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : ''
+        p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
+        typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
       return `<div class="pcard" data-id="${p.id}">
         <div class="pcard-top">
@@ -3838,6 +3925,13 @@ const DEFAULT_WALLET = {
 
     $$('#platform-grid .pcard').forEach(c => {
       c.addEventListener('click', () => openDrawer(c.dataset.id));
+    });
+    /* 角标点进去是三方比对，不打开详情抽屉 */
+    $$('#platform-grid .cc-badge').forEach(b => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        if (typeof ccFocusCross === 'function') ccFocusCross(b.dataset.ccgo);
+      });
     });
   }
 
@@ -8756,7 +8850,7 @@ function renderAccess() {
     downloadFile('gateway.env', buildGatewayEnv(plan), 'text/plain'));
 }
 
-  const PROBE_SNAPSHOT = {"schema":1,"generatedAt":"2026-11-03T06:55:22Z","runner":"github-actions","total":22,"probed":22,"counts":{"ok":2,"auth":19,"badkey":0,"forbidden":0,"notfound":0,"ratelimited":1,"server":0,"unreachable":0,"error":0,"skipped":0},"results":{"openai":{"status":"auth","http":401,"ms":71,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"Missing bearer [redacted] in header"},"anthropic":{"status":"auth","http":401,"ms":117,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"x-api-key [redacted] is required"},"gemini":{"status":"auth","http":403,"ms":112,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API."},"deepseek":{"status":"auth","http":401,"ms":320,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"Authentication Fails (governor)"},"bailian":{"status":"auth","http":401,"ms":884,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."},"volc":{"status":"auth","http":401,"ms":1134,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"the API key or AK/SK in the request is missing or invalid. request id: 021793688920033024308930c9cd2045e280adee16650f717e007"},"moonshot":{"status":"auth","http":401,"ms":1096,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Incorrect API key provided"},"zhipu":{"status":"auth","http":401,"ms":493,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"Header中未收到Authorization参数，无法进行身份验证。"},"minimax":{"status":"auth","http":401,"ms":847,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"},"xai":{"status":"auth","http":401,"ms":47,"keyed":false,"at":"2026-11-03T06:55:19Z","detail":"No credentials presented."},"hunyuan":{"status":"auth","http":401,"ms":1828,"keyed":false,"at":"2026-11-03T06:55:21Z","detail":"Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."},"qianfan":{"status":"ratelimited","http":429,"ms":2309,"keyed":false,"at":"2026-11-03T06:55:21Z","detail":"Over rate limit."},"spark":{"status":"auth","http":401,"ms":987,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Unauthorized"},"mistral":{"status":"auth","http":401,"ms":183,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Invalid API Key"},"sensenova":{"status":"auth","http":401,"ms":2584,"keyed":false,"at":"2026-11-03T06:55:22Z","detail":"Authorization [redacted] Found"},"longcat":{"status":"auth","http":401,"ms":520,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"missing_api_key"},"openrouter":{"status":"ok","http":200,"ms":38,"keyed":false,"at":"2026-11-03T06:55:20Z"},"groq":{"status":"auth","http":401,"ms":107,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Invalid API Key"},"siliconflow":{"status":"auth","http":401,"ms":544,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Token is invalid."},"github-models":{"status":"ok","http":200,"ms":215,"keyed":true,"at":"2026-11-03T06:55:20Z"},"together":{"status":"auth","http":401,"ms":72,"keyed":false,"at":"2026-11-03T06:55:20Z","detail":"Missing API key"},"cerebras":{"status":"auth","http":403,"ms":141,"keyed":false,"at":"2026-11-03T06:55:21Z","detail":"Not authenticated"}}};
+  const PROBE_SNAPSHOT = {"schema":1,"generatedAt":"2026-11-03T17:14:15Z","runner":"github-actions","total":22,"probed":22,"counts":{"ok":2,"auth":19,"badkey":0,"forbidden":1,"notfound":0,"ratelimited":0,"server":0,"unreachable":0,"error":0,"skipped":0},"results":{"openai":{"status":"auth","http":401,"ms":129,"keyed":false,"at":"2026-11-03T17:14:10Z","detail":"Missing bearer [redacted] in header"},"anthropic":{"status":"auth","http":401,"ms":106,"keyed":false,"at":"2026-11-03T17:14:10Z","detail":"x-api-key [redacted] is required"},"gemini":{"status":"auth","http":403,"ms":147,"keyed":false,"at":"2026-11-03T17:14:10Z","detail":"Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API."},"deepseek":{"status":"auth","http":401,"ms":515,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"Authentication Fails (governor)"},"bailian":{"status":"auth","http":401,"ms":717,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."},"volc":{"status":"auth","http":401,"ms":690,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"the API key or AK/SK in the request is missing or invalid. request id: 0217937260512201bf4585e48db892caa0c2994c319937482450f"},"moonshot":{"status":"auth","http":401,"ms":1575,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Incorrect API key provided"},"zhipu":{"status":"auth","http":401,"ms":789,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"Header中未收到Authorization参数，无法进行身份验证。"},"minimax":{"status":"auth","http":401,"ms":1046,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"},"xai":{"status":"auth","http":401,"ms":125,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"No credentials presented."},"hunyuan":{"status":"auth","http":401,"ms":2023,"keyed":false,"at":"2026-11-03T17:14:13Z","detail":"Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."},"qianfan":{"status":"forbidden","http":403,"ms":1516,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Access denied."},"spark":{"status":"auth","http":401,"ms":852,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Unauthorized"},"mistral":{"status":"auth","http":401,"ms":187,"keyed":false,"at":"2026-11-03T17:14:11Z","detail":"Invalid API Key"},"sensenova":{"status":"auth","http":401,"ms":3642,"keyed":false,"at":"2026-11-03T17:14:15Z","detail":"Authorization [redacted] Found"},"longcat":{"status":"auth","http":401,"ms":704,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"missing_api_key"},"openrouter":{"status":"ok","http":200,"ms":97,"keyed":false,"at":"2026-11-03T17:14:12Z"},"groq":{"status":"auth","http":401,"ms":152,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Invalid API Key"},"siliconflow":{"status":"auth","http":401,"ms":1033,"keyed":false,"at":"2026-11-03T17:14:13Z","detail":"Token is invalid."},"github-models":{"status":"ok","http":200,"ms":279,"keyed":true,"at":"2026-11-03T17:14:12Z"},"together":{"status":"auth","http":401,"ms":154,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Missing API key"},"cerebras":{"status":"auth","http":403,"ms":212,"keyed":false,"at":"2026-11-03T17:14:12Z","detail":"Not authenticated"}}};
   /* ============================================================
    自动探活结果展示（Probe）
    ------------------------------------------------------------
@@ -9802,7 +9896,7 @@ function renderVerify() {
     <div class="kpi">
       <div class="k-label">口径冲突</div>
       <div class="k-val ${nDisputed ? 'k-red' : 'k-green'}">${nDisputed + nConflict}<small>处</small></div>
-      <div class="k-foot">${nDisputed} 家免费政策存疑 · ${nConflict} 家接入信息有冲突</div>
+      <div class="k-foot">${nDisputed} 家免费政策存疑 · ${nConflict} 家接入信息有冲突 · <button class="cc-jump sm" id="verify-cc-all">三方比对 →</button></div>
     </div>
     <div class="kpi">
       <div class="k-label">已退役 id / 端点</div>
@@ -9825,6 +9919,16 @@ function renderVerify() {
     <input class="vsearch" id="verify-q" type="search" placeholder="搜厂商 / 环境变量 / base_url / model id…" value="${esc(VERIFY_FILTER.q)}">
     <button class="seg ${VERIFY_COMPACT ? 'on' : ''}" id="verify-compact" title="压缩留白、长段落截到 2 行；关键警示不隐藏">${VERIFY_COMPACT ? '紧凑视图 · 开' : '紧凑视图'}</button>
     <div class="vcount">匹配 <b>${list.length}</b> / ${all.length}</div>`;
+
+  /* 冲突口径与交叉校验视图是同一件事的两面：这里给一个出口，
+     交叉校验页再按 id 把人送回来（ccFocusVerify / ccApplyFocus）。 */
+  const ccAll = $('#verify-cc-all');
+  if (ccAll && !ccAll.dataset.bound) {
+    ccAll.dataset.bound = '1';
+    ccAll.addEventListener('click', () => {
+      if (typeof switchView === 'function') switchView('crosscheck');
+    });
+  }
 
   $$('[data-vt]').forEach(b => b.addEventListener('click', () => {
     VERIFY_FILTER.tier = b.dataset.vt;
@@ -9876,8 +9980,11 @@ function renderVerify() {
         </div>
         ${byTier[t].map(v => {
           const fs = FREE_STATE[v.free];
+          /* 交叉校验是独立模块，单测单独加载 verify.js 时不存在，用 typeof 守卫 */
+          const ccE = (typeof ccEvidenceFor === 'function') ? ccEvidenceFor(v.id) : null;
+          const ccConflict = !!(ccE && ccE.verdict.key === 'conflict');
           return `
-          <div class="vcard ${v.conflict ? 'has-conflict' : ''}">
+          <div data-vid="${esc(v.id)}" class="vcard ${v.conflict ? 'has-conflict' : ''}${ccConflict ? ' cc-cross-conflict' : ''}">
             <div class="vcard-head">
               <div class="vcard-id">
                 <b>${esc(v.name)}</b>
@@ -9887,6 +9994,7 @@ function renderVerify() {
                 <span class="chip ${v.region === 'cn' ? 'blue' : 'slate'}">${v.region === 'cn' ? '国内' : '海外'}</span>
                 <span class="chip ${fs.cls}">${esc(fs.label)}</span>
                 ${v.conflict ? '<span class="chip red">口径冲突</span>' : ''}
+                ${ccConflict ? '<span class="chip red">交叉校验 · 冲突</span>' : ''}
               </div>
             </div>
 
@@ -9916,7 +10024,12 @@ function renderVerify() {
             </div>` : ''}
 
             ${v.pitfall ? `<div class="vpit"><i>接入易错点</i><p>${esc(v.pitfall)}</p></div>` : ''}
-            ${v.conflict ? `<div class="vconf"><i>⚠ 口径冲突</i><p>${esc(v.conflict)}</p></div>` : ''}
+            ${v.conflict ? `<div class="vconf"><i>⚠ 口径冲突</i><p>${esc(v.conflict)}</p>${ccE && !ccConflict ? `<button class="cc-jump sm" data-ccgo="${esc(v.id)}">另见交叉校验 →</button>` : ''}</div>` : ''}
+            ${ccConflict ? `<div class="vcc">
+              <i>交叉校验 · 外部来源与本项目结论互斥</i>
+              ${ccE.sources.length ? `<ul>${ccE.sources.map(s => `<li><b>${esc(s.name)}</b><span>${esc(s.claim)}</span></li>`).join('')}</ul>` : '<p>外部追踪源未收录该厂商。</p>'}
+              <div class="vcc-foot"><span>本项目：${esc(ccE.hub)}</span><button class="cc-jump sm" data-ccgo="${esc(v.id)}">查看三方并列比对 →</button></div>
+            </div>` : ''}
 
             <div class="vsrc">
               <span>核实日期 ${esc(v.verifyDate)}</span>
@@ -9956,6 +10069,13 @@ function renderVerify() {
       <b>${esc(v.name)}</b>
       <div>${v.retired.map(r => `<code class="mono">${esc(r)}</code>`).join('')}</div>
     </div>`).join('');
+
+  /* --- 与交叉校验视图双向联动 --- */
+  $$('[data-ccgo]').forEach(b => b.addEventListener('click', () => {
+    if (typeof ccFocusCross === 'function') ccFocusCross(b.dataset.ccgo);
+  }));
+  /* 从交叉校验页按 id 跳过来时，高亮并滚到对应卡片 */
+  if (typeof ccApplyFocus === 'function') ccApplyFocus('data-vid', 'cc-focus');
 }
 
 /* 接入速查表 Markdown */
@@ -10014,6 +10134,8 @@ VIEWS.verify = {
   render: renderVerify
 };
 
+
+  const CC_SOURCES_SNAPSHOT = {"schema":1,"fetchedAt":"2026-11-05T15:13:55Z","runner":"local","note":"只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。","sources":[{"id":"freetoken","name":"FreeToken","checkedAt":"2026-10-22","axis":"额度口径","url":"https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json","status":"offline","note":"离线模式，沿用基线日期"},{"id":"intel","name":"free-llm-intel","checkedAt":"2026-11-03","axis":"额度口径","url":"https://github.com/rockbenben/free-llm-intel","status":"offline","note":"离线模式，沿用基线日期"},{"id":"relays","name":"justjavac/free-models","checkedAt":null,"axis":"中转覆盖","url":"https://models.denohub.com/catalog.json","status":"offline","note":"离线模式，沿用基线日期"}]};
 
   /* ============================================================
    双源交叉校验（Cross-Check）
@@ -10230,6 +10352,150 @@ function ccStanceCls(s) {
   return { free: 'green', trial: 'amber', none: 'red', unknown: 'ghost', na: 'ghost' }[s] || 'ghost';
 }
 
+/* ============================================================
+   外部来源元数据与新鲜度
+   ------------------------------------------------------------
+   build.py 会把仓库根的 crosscheck-sources.json 内联成 CC_SOURCES_SNAPSHOT，
+   由 probe.yml 每 6 小时重新抓一次三个来源的公开时间戳。抓不到就沿用
+   CC_SOURCES_BASE 的基线日期，并把 status 标成 unreachable —— 不假装更新过。
+   ============================================================ */
+const CC_SOURCES_BASE = [
+  { id: 'freetoken', name: 'FreeToken',          checkedAt: '2026-10-22', axis: '额度口径', url: 'https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json' },
+  { id: 'intel',     name: 'free-llm-intel',    checkedAt: '2026-11-03', axis: '额度口径', url: 'https://github.com/rockbenben/free-llm-intel' },
+  { id: 'relays',    name: 'justjavac/free-models', checkedAt: null,     axis: '中转覆盖', url: 'https://models.denohub.com/catalog.json' }
+];
+
+function ccEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* 距今小时数；解析不了返回 null */
+function ccHoursSince(iso, now) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!t) return null;
+  const base = now == null ? Date.now() : (typeof now === 'number' ? now : Date.parse(now));
+  if (!base) return null;
+  return (base - t) / 3600000;
+}
+function ccDaysSince(iso, now) {
+  const h = ccHoursSince(iso, now);
+  return h == null ? null : Math.floor(h / 24);
+}
+
+/* 连通性轴按小时、口径轴按天 —— 阈值不同才诚实 */
+function ccFreshLevel(iso, axis, now) {
+  const h = ccHoursSince(iso, now);
+  if (h == null) return { cls: 'ghost', text: '时间不明' };
+  if (h < 0) return { cls: 'ghost', text: '时间异常' };
+  if (axis === '连通性') {
+    if (h <= 8) return { cls: 'green', text: '新鲜' };
+    if (h <= 24) return { cls: 'amber', text: '偏旧' };
+    return { cls: 'red', text: '已过期' };
+  }
+  const d = h / 24;
+  if (d <= 30) return { cls: 'green', text: '新鲜' };
+  if (d <= 60) return { cls: 'amber', text: '偏旧' };
+  return { cls: 'red', text: '已过期' };
+}
+
+/* 纯函数：生成新鲜度条的行，单测直接喂固定时间 */
+function ccFreshnessRows(now, srcSnap, probeSnap, dataDate) {
+  const snap = srcSnap && Array.isArray(srcSnap.sources) ? srcSnap.sources : [];
+  const byId = {};
+  snap.forEach(s => { if (s && s.id) byId[s.id] = s; });
+  const rows = [
+    { id: 'hub', name: '本项目额度口径', axis: '额度口径', checkedAt: dataDate || '2026-10-20', status: 'baseline', note: '人工核实，非自动更新' }
+  ];
+  CC_SOURCES_BASE.forEach(b => {
+    const s = byId[b.id];
+    const checkedAt = (s && s.checkedAt) || b.checkedAt;
+    rows.push({
+      id: b.id, name: b.name, axis: b.axis, url: b.url,
+      checkedAt: checkedAt,
+      status: s ? (s.status || 'ok') : 'baseline',
+      note: s ? (s.note || '') : '基线日期，CI 未复核'
+    });
+  });
+  rows.push({
+    id: 'probe', name: '端点探活', axis: '连通性',
+    checkedAt: probeSnap && probeSnap.generatedAt ? probeSnap.generatedAt : null,
+    status: probeSnap ? 'ok' : 'missing',
+    note: probeSnap ? 'GET /models，不消耗额度' : '尚未跑过探活'
+  });
+  return rows.map(r => {
+    const h = ccHoursSince(r.checkedAt, now);
+    return Object.assign({}, r, {
+      hours: h,
+      days: h == null ? null : Math.floor(h / 24),
+      level: ccFreshLevel(r.checkedAt, r.axis, now)
+    });
+  });
+}
+
+function ccSourcesSnapshot() {
+  return (typeof CC_SOURCES_SNAPSHOT !== 'undefined' && CC_SOURCES_SNAPSHOT) || null;
+}
+function ccProbeSnapshot() {
+  return (typeof PROBE_SNAPSHOT !== 'undefined' && PROBE_SNAPSHOT) || null;
+}
+
+/* ============================================================
+   联动：接入核验 ↔ 交叉校验
+   ------------------------------------------------------------
+   用 document.body.dataset 传「要聚焦谁」，避免引入跨模块全局变量；
+   切视图后由目标 render 消费一次即清掉，不会残留误高亮。
+   ============================================================ */
+function ccFocusVerify(id) {
+  if (typeof document === 'undefined' || !id) return;
+  document.body.dataset.qhFocus = id;
+  if (typeof switchView === 'function') switchView('verify');
+}
+function ccFocusCross(id) {
+  if (typeof document === 'undefined' || !id) return;
+  document.body.dataset.qhFocus = id;
+  if (typeof switchView === 'function') switchView('crosscheck');
+}
+function ccApplyFocus(attr, cls) {
+  if (typeof document === 'undefined') return '';
+  const id = document.body.dataset.qhFocus || '';
+  if (!id) return '';
+  delete document.body.dataset.qhFocus;
+  const el = document.querySelector('[' + attr + '="' + id.replace(/"/g, '') + '"]');
+  if (el) {
+    el.classList.add(cls || 'cc-focus');
+    if (typeof setTimeout === 'function') {
+      setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }, 90);
+    }
+  }
+  return id;
+}
+
+/* 给接入核验卡片用：把三方说法结构化吐出去 */
+function ccEvidenceFor(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  if (!it) return null;
+  const sources = [];
+  if (it.ft) sources.push({ name: 'FreeToken', claim: it.ft.claim, stance: ccStanceFt(it), verified: !!it.ft.verified });
+  if (it.intel) sources.push({ name: 'free-llm-intel', claim: it.intel.claim, stance: ccStanceIntel(it) });
+  return { id, name: it.name, verdict: ccVerdict(it), hub: it.hub.note, sources, relay: it.relay };
+}
+
+const CC_BADGE_TEXT = { conflict: '冲突', gap: '待核', unknown: '待核', solo: '单源', agree: '一致' };
+/* 给平台库卡片用的轻量角标：只给一个字 + title，不堆数据 */
+function ccBadgeFor(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  if (!it) return '';
+  const v = ccVerdict(it);
+  const tip = ccEvidenceFor(id);
+  const detail = tip && tip.sources.length
+    ? tip.sources.map(s => s.name + '：' + s.claim).join(' / ')
+    : '外部追踪源未收录，本项目口径为唯一来源';
+  return `<span class="cc-badge cc-badge-${ccEsc(v.key)}" data-ccgo="${ccEsc(it.id)}" ` +
+    `title="交叉校验 · ${ccEsc(v.label)}｜${ccEsc(detail)}｜点此跳到三方比对">校验·${ccEsc(CC_BADGE_TEXT[v.key])}</span>`;
+}
+
 let __ccFilter = 'all';
 
 /* 视图渲染（仅浏览器内调用） */
@@ -10243,10 +10509,20 @@ function renderCrosscheck() {
   const cnt = { agree: 0, conflict: 0, gap: 0, solo: 0, unknown: 0 };
   rows.forEach(r => cnt[r.v.key]++);
 
+  /* 新鲜度：三源核实日期 + 最近一次探活，全部来自可复核的时间戳 */
+  const srcSnap = ccSourcesSnapshot();
+  const freshRows = ccFreshnessRows(
+    Date.now(), srcSnap, ccProbeSnapshot(),
+    (typeof DATA_DATE !== 'undefined' ? DATA_DATE : '2026-10-20')
+  );
+  const fetchedAt = srcSnap && srcSnap.fetchedAt ? srcSnap.fetchedAt : null;
+
+  /* 必须返回完整 <td>：<div> 直接放进 <tr> 会被浏览器 foster-parent 到表格外，
+     证据列会整片跑到表格下方，看起来像「列没对齐」。 */
   const cell = (stance, claim) => {
     const s = stance;
-    return `<div class="cc-cell"><span class="chip ${ccStanceCls(s)}">${CC_STANCE_LABEL[s]}</span>` +
-      (claim ? `<span class="cc-claim">${esc(claim)}</span>` : '<span class="cc-claim cc-muted">—</span>') + '</div>';
+    return `<td><div class="cc-cell"><span class="chip ${ccStanceCls(s)}">${CC_STANCE_LABEL[s]}</span>` +
+      (claim ? `<span class="cc-claim">${esc(claim)}</span>` : '<span class="cc-claim cc-muted">—</span>') + '</div></td>';
   };
 
   const filtered = __ccFilter === 'all' ? rows : rows.filter(r => r.v.key === __ccFilter);
@@ -10257,7 +10533,26 @@ function renderCrosscheck() {
   wrap.innerHTML = `
     <div class="sec-head">
       <h2>多来源口径交叉校验</h2>
-      <span class="hint">本项目 vs FreeToken(2026-10-22) vs free-llm-intel(2026-11-03)</span>
+      <span class="hint">本项目 vs FreeToken vs free-llm-intel · 点厂商名跳到接入核验</span>
+    </div>
+
+    <div class="card cc-fresh">
+      <div class="cc-fresh-head">
+        <b>数据新鲜度</b>
+        <span>${fetchedAt ? 'CI 最近复核 ' + esc(fetchedAt.replace('T', ' ').replace('Z', ' UTC')) : '尚未联网复核，以下为基线日期'}</span>
+      </div>
+      <div class="cc-fresh-grid">
+        ${freshRows.map(r => `
+          <div class="cc-fresh-item">
+            <span class="chip ${r.level.cls}">${esc(r.level.text)}</span>
+            <b>${esc(r.name)}</b>
+            <span class="cc-fresh-meta">${esc(r.axis)} · ${esc(r.checkedAt || '时间不明')}${r.days != null ? ' · 距今 ' + r.days + ' 天' : ''}</span>
+            ${r.status === 'unreachable' ? '<em>本次联网复核失败，沿用基线</em>' : ''}
+          </div>`).join('')}
+      </div>
+      <p class="cc-fresh-note"><b>别把两种新鲜度混为一谈：</b>探活只回答「端点接不接得通」，不更新任何额度口径；
+        三源日期来自各自公开台账 / 巡检时间戳，CI 每 6 小时复核的是<b>时间戳</b>，不会替你重新核额度。
+        口径超过 30 天的，仍请到平台控制台确认。</p>
     </div>
 
     <div class="kpi-grid">
@@ -10283,8 +10578,8 @@ function renderCrosscheck() {
         </tr></thead>
         <tbody>
           ${filtered.map(({ it, v }) => `
-            <tr class="${v.key === 'conflict' ? 'cc-row-conflict' : ''}">
-              <td class="cc-name">${esc(it.name)}</td>
+            <tr data-ccid="${esc(it.id)}" class="${v.key === 'conflict' ? 'cc-row-conflict' : ''}">
+              <td class="cc-name"><button class="cc-link" data-ccv="${esc(it.id)}" title="到接入核验看端点 / 环境变量 / 出处">${esc(it.name)} <span>→</span></button></td>
               ${cell(ccStanceHub(it), it.hub.note)}
               ${cell(ccStanceFt(it), it.ft ? it.ft.claim : null)}
               ${cell(ccStanceIntel(it), it.intel ? it.intel.claim : null)}
@@ -10305,12 +10600,19 @@ function renderCrosscheck() {
   wrap.querySelectorAll('[data-ccf]').forEach(b => {
     b.addEventListener('click', () => { __ccFilter = b.dataset.ccf; renderCrosscheck(); });
   });
+  wrap.querySelectorAll('[data-ccv]').forEach(b => {
+    b.addEventListener('click', () => ccFocusVerify(b.dataset.ccv));
+  });
+  ccApplyFocus('data-ccid', 'cc-focus');
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CROSSCHECK, ccStanceHub, ccStanceFt, ccStanceIntel,
-    ccVerdict, ccStanceCls, CC_STANCE_LABEL, renderCrosscheck
+    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT,
+    ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
+    ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,
+    ccSourcesSnapshot, ccProbeSnapshot, ccEvidenceFor, ccBadgeFor,
+    ccFocusVerify, ccFocusCross, ccApplyFocus, renderCrosscheck
   };
 }
 

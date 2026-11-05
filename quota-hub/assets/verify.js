@@ -822,7 +822,7 @@ function renderVerify() {
     <div class="kpi">
       <div class="k-label">口径冲突</div>
       <div class="k-val ${nDisputed ? 'k-red' : 'k-green'}">${nDisputed + nConflict}<small>处</small></div>
-      <div class="k-foot">${nDisputed} 家免费政策存疑 · ${nConflict} 家接入信息有冲突</div>
+      <div class="k-foot">${nDisputed} 家免费政策存疑 · ${nConflict} 家接入信息有冲突 · <button class="cc-jump sm" id="verify-cc-all">三方比对 →</button></div>
     </div>
     <div class="kpi">
       <div class="k-label">已退役 id / 端点</div>
@@ -845,6 +845,16 @@ function renderVerify() {
     <input class="vsearch" id="verify-q" type="search" placeholder="搜厂商 / 环境变量 / base_url / model id…" value="${esc(VERIFY_FILTER.q)}">
     <button class="seg ${VERIFY_COMPACT ? 'on' : ''}" id="verify-compact" title="压缩留白、长段落截到 2 行；关键警示不隐藏">${VERIFY_COMPACT ? '紧凑视图 · 开' : '紧凑视图'}</button>
     <div class="vcount">匹配 <b>${list.length}</b> / ${all.length}</div>`;
+
+  /* 冲突口径与交叉校验视图是同一件事的两面：这里给一个出口，
+     交叉校验页再按 id 把人送回来（ccFocusVerify / ccApplyFocus）。 */
+  const ccAll = $('#verify-cc-all');
+  if (ccAll && !ccAll.dataset.bound) {
+    ccAll.dataset.bound = '1';
+    ccAll.addEventListener('click', () => {
+      if (typeof switchView === 'function') switchView('crosscheck');
+    });
+  }
 
   $$('[data-vt]').forEach(b => b.addEventListener('click', () => {
     VERIFY_FILTER.tier = b.dataset.vt;
@@ -896,8 +906,11 @@ function renderVerify() {
         </div>
         ${byTier[t].map(v => {
           const fs = FREE_STATE[v.free];
+          /* 交叉校验是独立模块，单测单独加载 verify.js 时不存在，用 typeof 守卫 */
+          const ccE = (typeof ccEvidenceFor === 'function') ? ccEvidenceFor(v.id) : null;
+          const ccConflict = !!(ccE && ccE.verdict.key === 'conflict');
           return `
-          <div class="vcard ${v.conflict ? 'has-conflict' : ''}">
+          <div data-vid="${esc(v.id)}" class="vcard ${v.conflict ? 'has-conflict' : ''}${ccConflict ? ' cc-cross-conflict' : ''}">
             <div class="vcard-head">
               <div class="vcard-id">
                 <b>${esc(v.name)}</b>
@@ -907,6 +920,7 @@ function renderVerify() {
                 <span class="chip ${v.region === 'cn' ? 'blue' : 'slate'}">${v.region === 'cn' ? '国内' : '海外'}</span>
                 <span class="chip ${fs.cls}">${esc(fs.label)}</span>
                 ${v.conflict ? '<span class="chip red">口径冲突</span>' : ''}
+                ${ccConflict ? '<span class="chip red">交叉校验 · 冲突</span>' : ''}
               </div>
             </div>
 
@@ -936,7 +950,12 @@ function renderVerify() {
             </div>` : ''}
 
             ${v.pitfall ? `<div class="vpit"><i>接入易错点</i><p>${esc(v.pitfall)}</p></div>` : ''}
-            ${v.conflict ? `<div class="vconf"><i>⚠ 口径冲突</i><p>${esc(v.conflict)}</p></div>` : ''}
+            ${v.conflict ? `<div class="vconf"><i>⚠ 口径冲突</i><p>${esc(v.conflict)}</p>${ccE && !ccConflict ? `<button class="cc-jump sm" data-ccgo="${esc(v.id)}">另见交叉校验 →</button>` : ''}</div>` : ''}
+            ${ccConflict ? `<div class="vcc">
+              <i>交叉校验 · 外部来源与本项目结论互斥</i>
+              ${ccE.sources.length ? `<ul>${ccE.sources.map(s => `<li><b>${esc(s.name)}</b><span>${esc(s.claim)}</span></li>`).join('')}</ul>` : '<p>外部追踪源未收录该厂商。</p>'}
+              <div class="vcc-foot"><span>本项目：${esc(ccE.hub)}</span><button class="cc-jump sm" data-ccgo="${esc(v.id)}">查看三方并列比对 →</button></div>
+            </div>` : ''}
 
             <div class="vsrc">
               <span>核实日期 ${esc(v.verifyDate)}</span>
@@ -976,6 +995,13 @@ function renderVerify() {
       <b>${esc(v.name)}</b>
       <div>${v.retired.map(r => `<code class="mono">${esc(r)}</code>`).join('')}</div>
     </div>`).join('');
+
+  /* --- 与交叉校验视图双向联动 --- */
+  $$('[data-ccgo]').forEach(b => b.addEventListener('click', () => {
+    if (typeof ccFocusCross === 'function') ccFocusCross(b.dataset.ccgo);
+  }));
+  /* 从交叉校验页按 id 跳过来时，高亮并滚到对应卡片 */
+  if (typeof ccApplyFocus === 'function') ccApplyFocus('data-vid', 'cc-focus');
 }
 
 /* 接入速查表 Markdown */

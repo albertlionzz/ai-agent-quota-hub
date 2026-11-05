@@ -213,6 +213,150 @@ function ccStanceCls(s) {
   return { free: 'green', trial: 'amber', none: 'red', unknown: 'ghost', na: 'ghost' }[s] || 'ghost';
 }
 
+/* ============================================================
+   外部来源元数据与新鲜度
+   ------------------------------------------------------------
+   build.py 会把仓库根的 crosscheck-sources.json 内联成 CC_SOURCES_SNAPSHOT，
+   由 probe.yml 每 6 小时重新抓一次三个来源的公开时间戳。抓不到就沿用
+   CC_SOURCES_BASE 的基线日期，并把 status 标成 unreachable —— 不假装更新过。
+   ============================================================ */
+const CC_SOURCES_BASE = [
+  { id: 'freetoken', name: 'FreeToken',          checkedAt: '2026-10-22', axis: '额度口径', url: 'https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json' },
+  { id: 'intel',     name: 'free-llm-intel',    checkedAt: '2026-11-03', axis: '额度口径', url: 'https://github.com/rockbenben/free-llm-intel' },
+  { id: 'relays',    name: 'justjavac/free-models', checkedAt: null,     axis: '中转覆盖', url: 'https://models.denohub.com/catalog.json' }
+];
+
+function ccEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* 距今小时数；解析不了返回 null */
+function ccHoursSince(iso, now) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!t) return null;
+  const base = now == null ? Date.now() : (typeof now === 'number' ? now : Date.parse(now));
+  if (!base) return null;
+  return (base - t) / 3600000;
+}
+function ccDaysSince(iso, now) {
+  const h = ccHoursSince(iso, now);
+  return h == null ? null : Math.floor(h / 24);
+}
+
+/* 连通性轴按小时、口径轴按天 —— 阈值不同才诚实 */
+function ccFreshLevel(iso, axis, now) {
+  const h = ccHoursSince(iso, now);
+  if (h == null) return { cls: 'ghost', text: '时间不明' };
+  if (h < 0) return { cls: 'ghost', text: '时间异常' };
+  if (axis === '连通性') {
+    if (h <= 8) return { cls: 'green', text: '新鲜' };
+    if (h <= 24) return { cls: 'amber', text: '偏旧' };
+    return { cls: 'red', text: '已过期' };
+  }
+  const d = h / 24;
+  if (d <= 30) return { cls: 'green', text: '新鲜' };
+  if (d <= 60) return { cls: 'amber', text: '偏旧' };
+  return { cls: 'red', text: '已过期' };
+}
+
+/* 纯函数：生成新鲜度条的行，单测直接喂固定时间 */
+function ccFreshnessRows(now, srcSnap, probeSnap, dataDate) {
+  const snap = srcSnap && Array.isArray(srcSnap.sources) ? srcSnap.sources : [];
+  const byId = {};
+  snap.forEach(s => { if (s && s.id) byId[s.id] = s; });
+  const rows = [
+    { id: 'hub', name: '本项目额度口径', axis: '额度口径', checkedAt: dataDate || '2026-10-20', status: 'baseline', note: '人工核实，非自动更新' }
+  ];
+  CC_SOURCES_BASE.forEach(b => {
+    const s = byId[b.id];
+    const checkedAt = (s && s.checkedAt) || b.checkedAt;
+    rows.push({
+      id: b.id, name: b.name, axis: b.axis, url: b.url,
+      checkedAt: checkedAt,
+      status: s ? (s.status || 'ok') : 'baseline',
+      note: s ? (s.note || '') : '基线日期，CI 未复核'
+    });
+  });
+  rows.push({
+    id: 'probe', name: '端点探活', axis: '连通性',
+    checkedAt: probeSnap && probeSnap.generatedAt ? probeSnap.generatedAt : null,
+    status: probeSnap ? 'ok' : 'missing',
+    note: probeSnap ? 'GET /models，不消耗额度' : '尚未跑过探活'
+  });
+  return rows.map(r => {
+    const h = ccHoursSince(r.checkedAt, now);
+    return Object.assign({}, r, {
+      hours: h,
+      days: h == null ? null : Math.floor(h / 24),
+      level: ccFreshLevel(r.checkedAt, r.axis, now)
+    });
+  });
+}
+
+function ccSourcesSnapshot() {
+  return (typeof CC_SOURCES_SNAPSHOT !== 'undefined' && CC_SOURCES_SNAPSHOT) || null;
+}
+function ccProbeSnapshot() {
+  return (typeof PROBE_SNAPSHOT !== 'undefined' && PROBE_SNAPSHOT) || null;
+}
+
+/* ============================================================
+   联动：接入核验 ↔ 交叉校验
+   ------------------------------------------------------------
+   用 document.body.dataset 传「要聚焦谁」，避免引入跨模块全局变量；
+   切视图后由目标 render 消费一次即清掉，不会残留误高亮。
+   ============================================================ */
+function ccFocusVerify(id) {
+  if (typeof document === 'undefined' || !id) return;
+  document.body.dataset.qhFocus = id;
+  if (typeof switchView === 'function') switchView('verify');
+}
+function ccFocusCross(id) {
+  if (typeof document === 'undefined' || !id) return;
+  document.body.dataset.qhFocus = id;
+  if (typeof switchView === 'function') switchView('crosscheck');
+}
+function ccApplyFocus(attr, cls) {
+  if (typeof document === 'undefined') return '';
+  const id = document.body.dataset.qhFocus || '';
+  if (!id) return '';
+  delete document.body.dataset.qhFocus;
+  const el = document.querySelector('[' + attr + '="' + id.replace(/"/g, '') + '"]');
+  if (el) {
+    el.classList.add(cls || 'cc-focus');
+    if (typeof setTimeout === 'function') {
+      setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }, 90);
+    }
+  }
+  return id;
+}
+
+/* 给接入核验卡片用：把三方说法结构化吐出去 */
+function ccEvidenceFor(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  if (!it) return null;
+  const sources = [];
+  if (it.ft) sources.push({ name: 'FreeToken', claim: it.ft.claim, stance: ccStanceFt(it), verified: !!it.ft.verified });
+  if (it.intel) sources.push({ name: 'free-llm-intel', claim: it.intel.claim, stance: ccStanceIntel(it) });
+  return { id, name: it.name, verdict: ccVerdict(it), hub: it.hub.note, sources, relay: it.relay };
+}
+
+const CC_BADGE_TEXT = { conflict: '冲突', gap: '待核', unknown: '待核', solo: '单源', agree: '一致' };
+/* 给平台库卡片用的轻量角标：只给一个字 + title，不堆数据 */
+function ccBadgeFor(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  if (!it) return '';
+  const v = ccVerdict(it);
+  const tip = ccEvidenceFor(id);
+  const detail = tip && tip.sources.length
+    ? tip.sources.map(s => s.name + '：' + s.claim).join(' / ')
+    : '外部追踪源未收录，本项目口径为唯一来源';
+  return `<span class="cc-badge cc-badge-${ccEsc(v.key)}" data-ccgo="${ccEsc(it.id)}" ` +
+    `title="交叉校验 · ${ccEsc(v.label)}｜${ccEsc(detail)}｜点此跳到三方比对">校验·${ccEsc(CC_BADGE_TEXT[v.key])}</span>`;
+}
+
 let __ccFilter = 'all';
 
 /* 视图渲染（仅浏览器内调用） */
@@ -226,10 +370,20 @@ function renderCrosscheck() {
   const cnt = { agree: 0, conflict: 0, gap: 0, solo: 0, unknown: 0 };
   rows.forEach(r => cnt[r.v.key]++);
 
+  /* 新鲜度：三源核实日期 + 最近一次探活，全部来自可复核的时间戳 */
+  const srcSnap = ccSourcesSnapshot();
+  const freshRows = ccFreshnessRows(
+    Date.now(), srcSnap, ccProbeSnapshot(),
+    (typeof DATA_DATE !== 'undefined' ? DATA_DATE : '2026-10-20')
+  );
+  const fetchedAt = srcSnap && srcSnap.fetchedAt ? srcSnap.fetchedAt : null;
+
+  /* 必须返回完整 <td>：<div> 直接放进 <tr> 会被浏览器 foster-parent 到表格外，
+     证据列会整片跑到表格下方，看起来像「列没对齐」。 */
   const cell = (stance, claim) => {
     const s = stance;
-    return `<div class="cc-cell"><span class="chip ${ccStanceCls(s)}">${CC_STANCE_LABEL[s]}</span>` +
-      (claim ? `<span class="cc-claim">${esc(claim)}</span>` : '<span class="cc-claim cc-muted">—</span>') + '</div>';
+    return `<td><div class="cc-cell"><span class="chip ${ccStanceCls(s)}">${CC_STANCE_LABEL[s]}</span>` +
+      (claim ? `<span class="cc-claim">${esc(claim)}</span>` : '<span class="cc-claim cc-muted">—</span>') + '</div></td>';
   };
 
   const filtered = __ccFilter === 'all' ? rows : rows.filter(r => r.v.key === __ccFilter);
@@ -240,7 +394,26 @@ function renderCrosscheck() {
   wrap.innerHTML = `
     <div class="sec-head">
       <h2>多来源口径交叉校验</h2>
-      <span class="hint">本项目 vs FreeToken(2026-10-22) vs free-llm-intel(2026-11-03)</span>
+      <span class="hint">本项目 vs FreeToken vs free-llm-intel · 点厂商名跳到接入核验</span>
+    </div>
+
+    <div class="card cc-fresh">
+      <div class="cc-fresh-head">
+        <b>数据新鲜度</b>
+        <span>${fetchedAt ? 'CI 最近复核 ' + esc(fetchedAt.replace('T', ' ').replace('Z', ' UTC')) : '尚未联网复核，以下为基线日期'}</span>
+      </div>
+      <div class="cc-fresh-grid">
+        ${freshRows.map(r => `
+          <div class="cc-fresh-item">
+            <span class="chip ${r.level.cls}">${esc(r.level.text)}</span>
+            <b>${esc(r.name)}</b>
+            <span class="cc-fresh-meta">${esc(r.axis)} · ${esc(r.checkedAt || '时间不明')}${r.days != null ? ' · 距今 ' + r.days + ' 天' : ''}</span>
+            ${r.status === 'unreachable' ? '<em>本次联网复核失败，沿用基线</em>' : ''}
+          </div>`).join('')}
+      </div>
+      <p class="cc-fresh-note"><b>别把两种新鲜度混为一谈：</b>探活只回答「端点接不接得通」，不更新任何额度口径；
+        三源日期来自各自公开台账 / 巡检时间戳，CI 每 6 小时复核的是<b>时间戳</b>，不会替你重新核额度。
+        口径超过 30 天的，仍请到平台控制台确认。</p>
     </div>
 
     <div class="kpi-grid">
@@ -266,8 +439,8 @@ function renderCrosscheck() {
         </tr></thead>
         <tbody>
           ${filtered.map(({ it, v }) => `
-            <tr class="${v.key === 'conflict' ? 'cc-row-conflict' : ''}">
-              <td class="cc-name">${esc(it.name)}</td>
+            <tr data-ccid="${esc(it.id)}" class="${v.key === 'conflict' ? 'cc-row-conflict' : ''}">
+              <td class="cc-name"><button class="cc-link" data-ccv="${esc(it.id)}" title="到接入核验看端点 / 环境变量 / 出处">${esc(it.name)} <span>→</span></button></td>
               ${cell(ccStanceHub(it), it.hub.note)}
               ${cell(ccStanceFt(it), it.ft ? it.ft.claim : null)}
               ${cell(ccStanceIntel(it), it.intel ? it.intel.claim : null)}
@@ -288,11 +461,18 @@ function renderCrosscheck() {
   wrap.querySelectorAll('[data-ccf]').forEach(b => {
     b.addEventListener('click', () => { __ccFilter = b.dataset.ccf; renderCrosscheck(); });
   });
+  wrap.querySelectorAll('[data-ccv]').forEach(b => {
+    b.addEventListener('click', () => ccFocusVerify(b.dataset.ccv));
+  });
+  ccApplyFocus('data-ccid', 'cc-focus');
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CROSSCHECK, ccStanceHub, ccStanceFt, ccStanceIntel,
-    ccVerdict, ccStanceCls, CC_STANCE_LABEL, renderCrosscheck
+    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT,
+    ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
+    ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,
+    ccSourcesSnapshot, ccProbeSnapshot, ccEvidenceFor, ccBadgeFor,
+    ccFocusVerify, ccFocusCross, ccApplyFocus, renderCrosscheck
   };
 }

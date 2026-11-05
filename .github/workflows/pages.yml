@@ -57,9 +57,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 部署前重新构建一次：把刚被 probe 工作流更新的 probe.json 内联进产物。
-      # 否则提交的 HTML 里永远是上一轮快照，只有线上 fetch 才能纠正。
-      - name: Rebuild（内联最新探活快照）
+      # 部署前重新构建一次：把刚被 probe 工作流更新的 probe.json 与
+      # crosscheck-sources.json 一起内联进产物（build.py 会自动读这两个文件）。
+      # 否则线上 HTML 里永远是上一轮快照，只有运行时 fetch 才能纠正。
+      - name: Rebuild（内联最新探活与来源时间戳快照）
         run: python quota-hub/build.py
 
       - name: Configure Pages
@@ -77,6 +78,8 @@ jobs:
           # 探活结果要能被页面 fetch 到同目录的 probe.json；没有就跳过，
           # 页面会退回构建时内联的快照，不至于白屏。
           if [ -f probe.json ]; then cp probe.json "_site/probe.json"; else echo "::notice::还没有 probe.json，跳过"; fi
+          # 交叉校验的来源时间戳也放一份，方便线上核对 CI 到底复核到哪一天
+          if [ -f crosscheck-sources.json ]; then cp crosscheck-sources.json "_site/crosscheck-sources.json"; else echo "::notice::还没有 crosscheck-sources.json，跳过"; fi
           # 关掉 Jekyll 处理，避免 _ 开头的路径被吞
           touch _site/.nojekyll
           ls -lh _site

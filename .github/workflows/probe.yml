@@ -67,14 +67,20 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         run: python quota-hub/probe/probe.py --out probe.json --timeout 12 --workers 6
 
+      # 同一趟 CI 顺手复核「交叉校验」引用的三个外部来源时间戳。
+      # 只抓公开的核实/巡检日期，不解析额度内容——脚本替不了人判断谁说得对。
+      # 抓不到会在 JSON 里标 unreachable 并沿用基线，不会让流水线红。
+      - name: 复核交叉校验来源时间戳
+        run: python quota-hub/probe/sources.py --out crosscheck-sources.json --timeout 12
+
       - name: 提交结果
         run: |
-          if git diff --quiet -- probe.json; then
-            echo "probe.json 无变化"
+          if git diff --quiet -- probe.json crosscheck-sources.json; then
+            echo "探活与来源时间戳均无变化"
             exit 0
           fi
           git config user.name  "quota-hub-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add probe.json
-          git commit -m "chore(probe): $(date -u +%Y-%m-%dT%H:%MZ) 探活结果"
+          git add probe.json crosscheck-sources.json
+          git commit -m "chore(probe): $(date -u +%Y-%m-%dT%H:%MZ) 探活结果 + 来源时间戳复核"
           git push

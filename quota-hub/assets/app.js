@@ -331,6 +331,22 @@
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
+    /* 交叉校验只覆盖「接入总表」那 23 家；网页版 / 编程工具 / 礼包类条目
+       不在「官方免费 API」这一轴，不给它们硬套标记，也不假装覆盖 48 家。 */
+    const ccCover = $('#cc-cover');
+    if (ccCover && typeof CROSSCHECK !== 'undefined') {
+      const ids = new Set(PLATFORMS.map(p => p.id));
+      const covered = CROSSCHECK.filter(c => ids.has(c.id)).length;
+      const conflicts = CROSSCHECK.filter(c => ids.has(c.id) && ccVerdict(c).key === 'conflict').length;
+      ccCover.innerHTML = `交叉校验覆盖 <b>${covered}</b> / ${PLATFORMS.length} 家` +
+        (conflicts ? ` · <b style="color:var(--red)">${conflicts} 处冲突</b>` : '') +
+        ` · <button class="cc-jump sm" id="cc-cover-go">三方比对 →</button>`;
+      const go = $('#cc-cover-go');
+      if (go) go.addEventListener('click', () => {
+        if (typeof switchView === 'function') switchView('crosscheck');
+      });
+    }
+
     if (!list.length) {
       $('#platform-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1">
         <div>没有匹配的平台，试试放宽筛选或清空搜索。</div></div>`;
@@ -341,7 +357,8 @@
       const qt = QUOTA_TYPES[p.quotaType];
       const flags = [
         p.needsCard ? '' : `<span class="ital" title="无需信用卡">免卡</span>`,
-        p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : ''
+        p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
+        typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
       return `<div class="pcard" data-id="${p.id}">
         <div class="pcard-top">
@@ -362,6 +379,13 @@
 
     $$('#platform-grid .pcard').forEach(c => {
       c.addEventListener('click', () => openDrawer(c.dataset.id));
+    });
+    /* 角标点进去是三方比对，不打开详情抽屉 */
+    $$('#platform-grid .cc-badge').forEach(b => {
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        if (typeof ccFocusCross === 'function') ccFocusCross(b.dataset.ccgo);
+      });
     });
   }
 
@@ -984,6 +1008,8 @@
   /*__PROBESNAP__*/
   /*__PROBE__*/
   /*__VERIFY__*/
+
+  /*__CCSOURCES__*/
 
   /*__CROSSCHECK__*/
 

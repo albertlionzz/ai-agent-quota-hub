@@ -79,5 +79,96 @@ ok('汇总分布加总为 23', () => {
 /* ---------- 渲染函数存在（DOM 调用在浏览器内） ---------- */
 ok('renderCrosscheck 是可调用函数', () => eq(typeof renderCrosscheck, 'function'));
 
+/* ================= 新鲜度 ================= */
+const {
+  CC_SOURCES_BASE, CC_BADGE_TEXT, ccEsc, ccHoursSince, ccDaysSince,
+  ccFreshLevel, ccFreshnessRows, ccEvidenceFor, ccBadgeFor,
+  ccFocusVerify, ccFocusCross, ccApplyFocus
+} = require('./assets/crosscheck.js');
+const T0 = Date.parse('2026-11-05T00:00:00Z');
+
+ok('ccEsc 转义引号与尖括号', () => eq(ccEsc('<img src=x onerror="a">'), '&lt;img src=x onerror=&quot;a&quot;&gt;'));
+ok('ccHoursSince 按固定时钟算', () => eq(ccHoursSince('2026-11-04T00:00:00Z', T0), 24));
+ok('ccHoursSince 坏日期返回 null', () => eq(ccHoursSince('不是日期', T0), null));
+ok('ccDaysSince 向下取整', () => eq(ccDaysSince('2026-11-03T12:00:00Z', T0), 1));
+ok('口径轴：16 天仍新鲜', () => eq(ccFreshLevel('2026-10-20', '额度口径', T0).cls, 'green'));
+ok('口径轴：46 天偏旧', () => eq(ccFreshLevel('2026-09-20', '额度口径', T0).cls, 'amber'));
+ok('口径轴：65 天已过期', () => eq(ccFreshLevel('2026-09-01', '额度口径', T0).cls, 'red'));
+ok('连通性轴按小时，不用天的阈值', () => {
+  eq(ccFreshLevel('2026-11-04T20:00:00Z', '连通性', T0).cls, 'green');   // 4h
+  eq(ccFreshLevel('2026-11-04T12:00:00Z', '连通性', T0).cls, 'amber');   // 12h
+  eq(ccFreshLevel('2026-11-03T12:00:00Z', '连通性', T0).cls, 'red');     // 36h
+});
+ok('时间不明 / 未来时间不误判', () => {
+  eq(ccFreshLevel(null, '额度口径', T0).cls, 'ghost');
+  eq(ccFreshLevel('2026-12-01', '额度口径', T0).text, '时间异常');
+});
+
+ok('新鲜度行 = 5 条，顺序固定', () => {
+  const rows = ccFreshnessRows(T0, null, null, '2026-10-20');
+  eq(rows.length, 5);
+  eq(rows.map(r => r.id).join(','), 'hub,freetoken,intel,relays,probe');
+});
+ok('无快照时退回基线且标 baseline / missing', () => {
+  const rows = ccFreshnessRows(T0, null, null, '2026-10-20');
+  eq(rows[1].status, 'baseline');
+  eq(rows[1].checkedAt, '2026-10-22');
+  eq(rows[3].checkedAt, null);           // relays 基线没有日期，不编一个
+  eq(rows[4].status, 'missing');
+  eq(rows[4].level.cls, 'ghost');
+});
+ok('CI 快照覆盖基线日期，unreachable 沿用基线', () => {
+  const snap = { sources: [
+    { id: 'freetoken', checkedAt: '2026-10-22', status: 'ok' },
+    { id: 'intel', checkedAt: '2026-11-04', status: 'ok' },
+    { id: 'relays', checkedAt: null, status: 'unreachable' }
+  ] };
+  const rows = ccFreshnessRows(T0, snap, { generatedAt: '2026-11-04T22:00:00Z' }, '2026-10-20');
+  eq(rows[2].checkedAt, '2026-11-04');          // 被快照更新
+  eq(rows[3].status, 'unreachable');
+  eq(rows[3].checkedAt, null);                   // 抓不到就不假装更新
+  eq(rows[4].checkedAt, '2026-11-04T22:00:00Z');
+  eq(rows[4].axis, '连通性');
+  eq(rows[4].hours, 2);
+});
+
+/* ================= 联动 / 角标 ================= */
+ok('ccEvidenceFor(deepseek) 带冲突判定与两方说法', () => {
+  const e = ccEvidenceFor('deepseek');
+  eq(e.verdict.key, 'conflict');
+  eq(e.sources.length, 2);
+  eq(e.sources[0].name, 'FreeToken');
+  eq(e.sources[1].name, 'free-llm-intel');
+  assert(e.hub && e.name === 'DeepSeek');
+});
+ok('ccEvidenceFor 未知 id 返回 null', () => eq(ccEvidenceFor('nope'), null));
+ok('ccBadgeFor 冲突条目带跳转 id', () => {
+  const b = ccBadgeFor('deepseek');
+  assert(/cc-badge-conflict/.test(b), b);
+  assert(/data-ccgo="deepseek"/.test(b), b);
+});
+ok('ccBadgeFor 对未覆盖厂商返回空（不硬套标记）', () => eq(ccBadgeFor('nope'), ''));
+ok('CC_BADGE_TEXT 覆盖五种判定', () => {
+  ['conflict', 'gap', 'unknown', 'solo', 'agree'].forEach(k => assert(CC_BADGE_TEXT[k], k));
+});
+ok('联动函数齐全', () => {
+  [ccFocusVerify, ccFocusCross, ccApplyFocus].forEach(f => eq(typeof f, 'function'));
+});
+
+/* ================= 平台库 id 映射（任务 2） ================= */
+const fs = require('fs');
+const path = require('path');
+const dctx = {};
+new Function('exports', fs.readFileSync(path.join(__dirname, 'assets', 'data.js'), 'utf8') +
+  '\n;Object.assign(exports,{PLATFORMS});')(dctx);
+const pids = new Set(dctx.PLATFORMS.map(p => p.id));
+ok('平台库共 48 家', () => eq(dctx.PLATFORMS.length, 48));
+ok('23 家交叉校验中 22 家能映射到平台库', () =>
+  eq(CROSSCHECK.filter(c => pids.has(c.id)).length, 22));
+ok('唯一映射不上的只有 llama（Meta 无官方 API）', () =>
+  eq(CROSSCHECK.filter(c => !pids.has(c.id)).map(c => c.id).join(','), 'llama'));
+ok('两处冲突在平台库里都有对应卡片', () =>
+  eq(CROSSCHECK.filter(c => pids.has(c.id) && ccVerdict(c).key === 'conflict').length, 2));
+
 console.log(`\n交叉校验单测：${pass} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);

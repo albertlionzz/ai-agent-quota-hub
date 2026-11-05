@@ -378,6 +378,12 @@
     var view = navTo('crosscheck');
     var rows = qa('#view-crosscheck .cc-table tbody tr', view);
     add('交叉校验表渲染 23 行', rows.length === 23, rows.length);
+    /* 回归：cell() 曾返回裸 <div>，被浏览器踢出表格，每行只剩 3 个 td。
+       只看行数查不出来，必须逐行核列数。 */
+    var badCols = rows.filter(function (r) { return qa('td', r).length !== 6; }).length;
+    add('每行恰好 6 个 <td>（证据列没被踢出表格）', badCols === 0, badCols + ' 行异常');
+    add('表格外没有游离的 .cc-cell', qa('#view-crosscheck .cc-wrap > .cc-cell', view).length === 0,
+      qa('#view-crosscheck .cc-wrap > .cc-cell', view).length);
     var conflict = qa('#view-crosscheck .cc-row-conflict', view);
     add('冲突行高亮 = 2（DeepSeek / Kimi）', conflict.length === 2, conflict.length);
     var kpis = qa('#view-crosscheck .kpi', view);
@@ -385,12 +391,85 @@
     var fbtn = qa('#view-crosscheck .cc-f', view).filter(function (x) {
       return x.getAttribute('data-ccf') === 'conflict';
     })[0];
+    var fresh = q('#view-crosscheck .cc-fresh', view);
+    add('数据新鲜度条已渲染', !!fresh);
+    add('新鲜度条列出本项目 + 三源 + 探活', (function () {
+      if (!fresh) return false;
+      var t = txt(fresh);
+      return /本项目额度口径/.test(t) && /FreeToken/.test(t) && /free-llm-intel/.test(t) &&
+        /free-models/.test(t) && /端点探活/.test(t);
+    })(), fresh ? txt(fresh).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
+    add('新鲜度条明说「探活不更新额度口径」', /不更新/.test(txt(fresh)));
     if (fbtn) fbtn.click();
     var after = qa('#view-crosscheck .cc-table tbody tr', view);
     add('「冲突」过滤只留 2 行', after.length === 2, after.length);
+    /* 复位，别把过滤态带给后面的横向溢出检查 */
+    var allBtn = qa('#view-crosscheck .cc-f', view).filter(function (x) {
+      return x.getAttribute('data-ccf') === 'all';
+    })[0];
+    if (allBtn) allBtn.click();
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s16, s17];
+  /* ---------- 22. 交叉校验 ↔ 接入核验 双向联动 ---------- */
+  function s22() {
+    /* 先把核验页筛选复位，保证 DeepSeek 卡片在列表里 */
+    navTo('verify');
+    var vt = q('#verify-filters [data-vt="all"]'), vf = q('#verify-filters [data-vf="all"]');
+    if (vt) vt.click();
+    if (vf) vf.click();
+
+    navTo('crosscheck');
+    var link = q('#view-crosscheck [data-ccv="deepseek"]');
+    add('交叉校验行有「到核验」入口', !!link);
+    if (link) link.click();
+    var active = q('.view.active');
+    add('点厂商名跳到接入核验', !!active && active.id === 'view-verify', active ? active.id : 'none');
+    var card = q('#verify-list .vcard[data-vid="deepseek"]');
+    add('核验卡片按 id 可定位', !!card);
+    add('跳过来后卡片被高亮', !!card && card.classList.contains('cc-focus'));
+    add('冲突厂商卡片显示外部证据块', !!card && !!q('.vcc', card));
+    add('外部证据块列出两个外部来源', (function () {
+      if (!card) return false;
+      var t = txt(q('.vcc', card));
+      return /FreeToken/.test(t) && /free-llm-intel/.test(t);
+    })(), card ? txt(q('.vcc', card)).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
+    add('卡片带「交叉校验 · 冲突」角标', !!card && /交叉校验 · 冲突/.test(txt(card)));
+
+    var back = card ? q('[data-ccgo]', card) : null;
+    add('核验卡片有跳回三方比对的按钮', !!back);
+    if (back) back.click();
+    var backView = q('.view.active');
+    add('跳回交叉校验视图', !!backView && backView.id === 'view-crosscheck', backView ? backView.id : 'none');
+    var row = q('#view-crosscheck tr[data-ccid="deepseek"]');
+    add('跳回后对应行高亮', !!row && row.classList.contains('cc-focus'));
+    var allBtn2 = q('#verify-cc-all');
+    add('核验 KPI 有「三方比对」出口', !!allBtn2);
+  }
+
+  /* ---------- 23. 平台库轻量交叉标记 ---------- */
+  function s23() {
+    var view = navTo('registry');
+    var badges = qa('#platform-grid .cc-badge', view);
+    add('平台库出现交叉校验角标', badges.length > 0, badges.length);
+    add('角标 = 22 个（23 家减 Meta Llama）', badges.length === 22, badges.length);
+    var cover = q('#cc-cover');
+    add('覆盖统计条写明 22 / 48', !!cover && /22/.test(txt(cover)) && /48/.test(txt(cover)),
+      cover ? txt(cover).replace(/\s+/g, ' ').slice(0, 50) : 'missing');
+    add('覆盖统计标出 2 处冲突', !!cover && /2 处冲突/.test(txt(cover)));
+    var cBadges = qa('#platform-grid .cc-badge-conflict', view);
+    add('冲突角标 = 2 个', cBadges.length === 2, cBadges.length);
+    if (cBadges.length) {
+      cBadges[0].click();
+      var v = q('.view.active');
+      add('点角标跳到交叉校验', !!v && v.id === 'view-crosscheck', v ? v.id : 'none');
+      add('点角标不会打开详情抽屉', !q('#drawer') || !q('#drawer').classList.contains('on'));
+    }
+    /* s16 会遍历所有视图，留个干净的过滤态 */
+    var allBtn = q('#view-crosscheck .cc-f[data-ccf="all"]');
+    if (allBtn && allBtn.classList.contains('on') === false) allBtn.click();
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s22, s23, s16, s17];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();
