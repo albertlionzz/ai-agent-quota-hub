@@ -45,7 +45,12 @@ RAW_FREETOKEN = 'https://raw.githubusercontent.com/AIPMAndy/FreeToken/main/data/
 RAW_INTEL = 'https://raw.githubusercontent.com/rockbenben/free-llm-intel/main/README.md'
 CATALOG = 'https://models.denohub.com/catalog.json'
 
-INTEL_SCAN = re.compile(r'最近一次巡检[：:]\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}:\d{2}))?')
+# 上游 README 把时间戳用 Markdown 加粗包住：「最近一次巡检：**2026-11-06 10:43:18**」。
+# 早期版本没有 **，也没有时分秒，所以两种都要认；\s* 与 \*{0,2} 专门吃掉这层排版符。
+INTEL_SCAN = re.compile(
+    r'最近一次巡检[：:]\s*\*{0,2}\s*(\d{4}-\d{2}-\d{2})'
+    r'(?:[\s*T]+(\d{2}:\d{2}:\d{2}))?'
+)
 
 
 def utc_now():

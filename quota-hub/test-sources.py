@@ -49,6 +49,18 @@ ok('INTEL_SCAN 也认半角冒号与纯日期', lambda: (
 ))
 ok('INTEL_SCAN 不匹配无关文本', lambda: eq(S.INTEL_SCAN.search('本页更新于 2026-11-05'), None))
 
+def t_intel_bold():
+    """上游真实格式：加粗包住整个日期时间，早期正则漏掉这一路导致 CI 一直 no-date。"""
+    line = '本区块由 `crawler_llm_intel.py` 在**每次运行时**实时巡检官方页面生成，最近一次巡检：**2026-11-06 10:43:18**；本地手动运行见文首。'
+    m = S.INTEL_SCAN.search(line)
+    assert m, '加粗巡检戳必须能被识别'
+    eq(m.group(1), '2026-11-06')
+    eq(m.group(2), '10:43:18')
+    # 加粗但只有日期，也不能把 ** 当成日期的一部分
+    m2 = S.INTEL_SCAN.search('最近一次巡检：**2026-11-06**')
+    assert m2 and m2.group(1) == '2026-11-06'
+ok('INTEL_SCAN 认上游加粗巡检戳（回归）', t_intel_bold)
+
 ok('header_date 优先 Last-Modified 并转成 UTC', lambda: (
     eq(S.header_date({'Last-Modified': 'Wed, 04 Nov 2026 12:00:00 GMT',
                       'Date': 'Wed, 04 Nov 2026 13:00:00 GMT'})[0], '2026-11-04T12:00:00Z'),

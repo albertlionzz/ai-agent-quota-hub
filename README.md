@@ -116,6 +116,8 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 **数据新鲜度**：页面顶部列出本项目口径日期、三个外部来源的核实 / 巡检时间戳和最近一次端点探活。`quota-hub/probe/sources.py` 由 `probe.yml` 每 6 小时跑一次，只抓三源公开的时间戳（FreeToken 台账 `updated`、free-llm-intel README 巡检戳、free-models 的 HTTP 时间头），**不解析额度内容**——脚本替不了人判断谁说得对。抓不到就标 `unreachable` 并沿用基线日期，不假装更新过。探活与口径是两种新鲜度：探活只证明端点接得通，不更新任何额度数字。
 
+有个容易漏的坑：bot 用 `GITHUB_TOKEN` 提交的 push **不会触发其它工作流**（GitHub 的防循环机制），而 Pages 与 probe 并发、跑在提交之前，内联的还是旧快照。所以 `probe.yml` 在提交成功后会 `gh workflow run pages.yml` 显式派发一次发布，让 `build.py` 重新内联刚提交的 JSON——否则「每 6 小时复核」只更新了仓库里的文件，线上页面永远看不到。派发失败只告警、不让 probe 报红。
+
 
 
 ## 测试
@@ -136,7 +138,7 @@ node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 �
 node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本过 bash -n 与 PS 解析器
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
 python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
-python test-sources.py   # 来源时间戳 13 项：离线兜底、字段解析、单源失败隔离、产物结构
+python test-sources.py   # 来源时间戳 14 项：离线兜底、字段解析（含上游加粗巡检戳）、单源失败隔离、产物结构
 node test-crosscheck.js  # 双源交叉校验 40 项：立场归一、判定、新鲜度、联动、平台库 id 映射
 node smoke/run.js        # 浏览器冒烟 324 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
 ```
