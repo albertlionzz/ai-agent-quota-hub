@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "fetchedAt": "2026-11-05T15:13:55Z",
-  "runner": "local",
+  "fetchedAt": "2026-11-06T03:24:51Z",
+  "runner": "github-actions",
   "note": "只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。",
   "sources": [
     {
@@ -10,8 +10,8 @@
       "checkedAt": "2026-10-22",
       "axis": "额度口径",
       "url": "https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json",
-      "status": "offline",
-      "note": "离线模式，沿用基线日期"
+      "status": "ok",
+      "note": "台账 updated 字段 · 共 16 条 provider"
     },
     {
       "id": "intel",
@@ -19,17 +19,17 @@
       "checkedAt": "2026-11-03",
       "axis": "额度口径",
       "url": "https://github.com/rockbenben/free-llm-intel",
-      "status": "offline",
-      "note": "离线模式，沿用基线日期"
+      "status": "no-date",
+      "note": "README 未找到「最近一次巡检」时间戳"
     },
     {
       "id": "relays",
       "name": "justjavac/free-models",
-      "checkedAt": null,
+      "checkedAt": "2026-11-05T07:03:26Z",
       "axis": "中转覆盖",
       "url": "https://models.denohub.com/catalog.json",
-      "status": "offline",
-      "note": "离线模式，沿用基线日期"
+      "status": "ok",
+      "note": "HTTP Last-Modified 响应头（随每次部署更新）"
     }
   ]
 }
