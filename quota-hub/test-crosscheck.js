@@ -82,7 +82,8 @@ ok('renderCrosscheck 是可调用函数', () => eq(typeof renderCrosscheck, 'fun
 /* ================= 新鲜度 ================= */
 const {
   CC_SOURCES_BASE, CC_BADGE_TEXT, ccEsc, ccHoursSince, ccDaysSince,
-  ccFreshLevel, ccFreshnessRows, ccEvidenceFor, ccBadgeFor,
+  ccFreshLevel, ccFreshnessRows, ccStatusNote, CC_STATUS_NOTE,
+  ccEvidenceFor, ccBadgeFor,
   ccFocusVerify, ccFocusCross, ccApplyFocus
 } = require('./assets/crosscheck.js');
 const T0 = Date.parse('2026-11-05T00:00:00Z');
@@ -153,6 +154,23 @@ ok('CC_BADGE_TEXT 覆盖五种判定', () => {
 });
 ok('联动函数齐全', () => {
   [ccFocusVerify, ccFocusCross, ccApplyFocus].forEach(f => eq(typeof f, 'function'));
+});
+
+/* ---------- 非 ok 状态必须诚实标注（本轮修的语义糙点） ---------- */
+ok('ccStatusNote 对 ok 不显示任何说明', () => eq(ccStatusNote('ok'), ''));
+ok('ccStatusNote 覆盖全部非 ok 状态且文案互不相同', () => {
+  const keys = Object.keys(CC_STATUS_NOTE);
+  eq(keys.length, 5);
+  assert(!keys.includes('ok'), 'ok 不该有「沿用基线」提示');
+  const notes = keys.map(k => ccStatusNote(k));
+  notes.forEach(n => assert(n && n.length > 3, '缺文案: ' + n));
+  eq(new Set(notes).size, 5, '不同状态不能共用同一句托词');
+});
+ok('未知状态返回空串，不编文案', () => eq(ccStatusNote('whatever'), ''));
+ok('无快照时每一行都能说明日期出处（不会冒充新鲜）', () => {
+  const rows = ccFreshnessRows(T0, null, null, '2026-10-20');
+  eq(rows.length, 5);
+  rows.forEach(r => assert(ccStatusNote(r.status), r.id + ' 状态 ' + r.status + ' 缺说明'));
 });
 
 /* ================= 平台库 id 映射（任务 2） ================= */

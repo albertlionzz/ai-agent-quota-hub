@@ -10,6 +10,9 @@ on:
     paths:
       - '.github/workflows/probe.yml'
       - 'quota-hub/probe/**'    # 端点表或探活脚本改了，立刻跑一次验证
+      - 'quota-hub/assets/data.js'
+      - 'quota-hub/assets/crosscheck.js'
+      - 'quota-hub/check-confidence.js'
 
 permissions:
   contents: write               # 需要提交 probe.json
@@ -35,6 +38,11 @@ jobs:
       # 漂了就说明有人改了 verify.js 忘了重生成——让 CI 红，比让探活测错端点好。
       - name: 校验端点清单与 verify.js 一致
         run: node quota-hub/probe/gen_endpoints.js --check
+
+      # 三方比对已判「口径冲突」的厂商，平台库不能再标 verified（多来源一致）。
+      # 数据层一改就跑这个门禁，逼人去裁定，别让两份数据悄悄打架。
+      - name: 校验平台库 confidence 与交叉校验结论一致
+        run: node quota-hub/check-confidence.js --check
 
       - uses: actions/setup-python@v5
         with:
@@ -74,17 +82,25 @@ jobs:
       - name: 复核交叉校验来源时间戳
         run: python quota-hub/probe/sources.py --out crosscheck-sources.json --timeout 12
 
+      # 仓库根那份单文件 HTML 是给用户下载离线用的。只更新 JSON 不重建它，
+      # 离线打开看到的永远是上一轮快照。和 pages.yml 用同一个 build.py，
+      # 这里再跑一次一起提交，保证「clone 下来双击」与线上是同一份数据。
+      - name: 重建离线产物并校验内联快照
+        run: |
+          python quota-hub/build.py
+          python -c "import json,pathlib; r=pathlib.Path('.'); h=list(r.glob('*.html')); assert len(h)==1, 'expected one root HTML'; s=json.loads((r/'crosscheck-sources.json').read_text(encoding='utf-8'))['fetchedAt']; assert s in h[0].read_text(encoding='utf-8'), 'source snapshot not inlined'; print('inline snapshot verified:', s)"
+
       - name: 提交结果
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git diff --quiet -- probe.json crosscheck-sources.json; then
-            echo "探活与来源时间戳均无变化"
+          if git diff --quiet -- probe.json crosscheck-sources.json "AI-Agent免费额度调度中台.html"; then
+            echo "探活、来源时间戳与离线产物均无变化"
             exit 0
           fi
           git config user.name  "quota-hub-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add probe.json crosscheck-sources.json
+          git add probe.json crosscheck-sources.json "AI-Agent免费额度调度中台.html"
           git commit -m "chore(probe): $(date -u +%Y-%m-%dT%H:%MZ) 探活结果 + 来源时间戳复核"
           git push
           # GITHUB_TOKEN 发起的 push 不会触发其它 workflow（GitHub 的防循环机制），

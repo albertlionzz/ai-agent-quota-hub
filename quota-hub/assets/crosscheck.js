@@ -261,6 +261,19 @@ function ccFreshLevel(iso, axis, now) {
   return { cls: 'red', text: '已过期' };
 }
 
+/* 状态文案：只有 ok 才是「这轮真的复核过了」。
+   其余一律明说日期从哪来，别拿基线的天数冒充新鲜度。 */
+const CC_STATUS_NOTE = {
+  unreachable: '本次联网复核失败，沿用基线',
+  'no-date':   '本轮未取到时间戳，沿用基线',
+  offline:     '离线基线，未经 CI 复核',
+  baseline:    '人工核实，非自动更新',
+  missing:     '尚未跑过探活'
+};
+function ccStatusNote(status) {
+  return CC_STATUS_NOTE[status] || '';
+}
+
 /* 纯函数：生成新鲜度条的行，单测直接喂固定时间 */
 function ccFreshnessRows(now, srcSnap, probeSnap, dataDate) {
   const snap = srcSnap && Array.isArray(srcSnap.sources) ? srcSnap.sources : [];
@@ -404,11 +417,11 @@ function renderCrosscheck() {
       </div>
       <div class="cc-fresh-grid">
         ${freshRows.map(r => `
-          <div class="cc-fresh-item">
+          <div class="cc-fresh-item" data-ccstatus="${ccEsc(r.status)}">
             <span class="chip ${r.level.cls}">${esc(r.level.text)}</span>
             <b>${esc(r.name)}</b>
             <span class="cc-fresh-meta">${esc(r.axis)} · ${esc(r.checkedAt || '时间不明')}${r.days != null ? ' · 距今 ' + r.days + ' 天' : ''}</span>
-            ${r.status === 'unreachable' ? '<em>本次联网复核失败，沿用基线</em>' : ''}
+            ${ccStatusNote(r.status) ? `<em class="${r.status === 'baseline' ? 'cc-note-neutral' : ''}">${ccEsc(ccStatusNote(r.status))}</em>` : ''}
           </div>`).join('')}
       </div>
       <p class="cc-fresh-note"><b>别把两种新鲜度混为一谈：</b>探活只回答「端点接不接得通」，不更新任何额度口径；
@@ -469,8 +482,9 @@ function renderCrosscheck() {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT,
+    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT, CC_STATUS_NOTE,
     ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
+    ccStatusNote,
     ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,
     ccSourcesSnapshot, ccProbeSnapshot, ccEvidenceFor, ccBadgeFor,
     ccFocusVerify, ccFocusCross, ccApplyFocus, renderCrosscheck

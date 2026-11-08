@@ -400,6 +400,18 @@
         /free-models/.test(t) && /端点探活/.test(t);
     })(), fresh ? txt(fresh).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
     add('新鲜度条明说「探活不更新额度口径」', /不更新/.test(txt(fresh)));
+    /* 状态语义回归：只有 ok 才敢不写说明；其余一律注明日期从哪来。
+       用 data-ccstatus 判定，别写死「三源全 ok」，CI 数据变了也不误报。 */
+    var fItems = qa('#view-crosscheck .cc-fresh-item', view);
+    var badNote = fItems.filter(function (it) {
+      var has = qa('em', it).length > 0;
+      return it.getAttribute('data-ccstatus') === 'ok' ? has : !has;
+    });
+    add('新鲜度：ok 不提示 / 非 ok 全都有出处说明', fItems.length === 5 && badNote.length === 0,
+      fItems.length + ' 卡, ' + badNote.length + ' 异常');
+    var neutral = q('#view-crosscheck [data-ccstatus="baseline"] em', view);
+    add('本项目中性说明用 ink-3 而非警示色', !!neutral &&
+      neutral.className.indexOf('cc-note-neutral') >= 0, neutral ? neutral.className : 'missing');
     if (fbtn) fbtn.click();
     var after = qa('#view-crosscheck .cc-table tbody tr', view);
     add('「冲突」过滤只留 2 行', after.length === 2, after.length);

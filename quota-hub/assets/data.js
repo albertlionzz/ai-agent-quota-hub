@@ -237,7 +237,7 @@ const PLATFORMS = [
     caveats: ['API 侧没有免费额度，别等', '⚠ kimi-k2.5 与 moonshot-v1 全系已退役', 'Kimi Code / 会员的 key 不能用于开放平台'],
     needsCard: false, needsPhone: true,
     tags: ['chat','writing','long-text','reasoning','code'],
-    confidence: 'verified', source: 'platform.moonshot.cn/docs/api/',
+    confidence: 'disputed', source: '官方页称 API 无免费档 vs free-llm-intel 列 15 元代金券（三方口径冲突）',
     url: 'https://platform.moonshot.cn',
     note: '想免费拿 Kimi K3 走商汤 SenseNova 或魔搭，别在官方 API 上等免费。老教程里的 moonshot-v1-8k/32k/128k 与 kimi-k2.5 已于 2026-08-31 16:00 退役，现在调用返回 404。'
   },

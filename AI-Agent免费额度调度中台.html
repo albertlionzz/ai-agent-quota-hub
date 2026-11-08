@@ -580,6 +580,7 @@ select { font-family: var(--sans); }
 .cc-fresh-item > b { font-size: 12px; color: var(--ink); }
 .cc-fresh-meta { font-size: 11px; color: var(--ink-3); font-family: var(--mono); line-height: 1.5; }
 .cc-fresh-item em { font-size: 10.5px; color: var(--amber); font-style: normal; line-height: 1.4; }
+.cc-fresh-item em.cc-note-neutral { color: var(--ink-3); }
 .cc-fresh-note { margin: 11px 0 0; font-size: 11.5px; color: var(--ink-2); line-height: 1.65; }
 .cc-fresh-note b { color: var(--ink); }
 
@@ -3012,7 +3013,7 @@ const PLATFORMS = [
     caveats: ['API 侧没有免费额度，别等', '⚠ kimi-k2.5 与 moonshot-v1 全系已退役', 'Kimi Code / 会员的 key 不能用于开放平台'],
     needsCard: false, needsPhone: true,
     tags: ['chat','writing','long-text','reasoning','code'],
-    confidence: 'verified', source: 'platform.moonshot.cn/docs/api/',
+    confidence: 'disputed', source: '官方页称 API 无免费档 vs free-llm-intel 列 15 元代金券（三方口径冲突）',
     url: 'https://platform.moonshot.cn',
     note: '想免费拿 Kimi K3 走商汤 SenseNova 或魔搭，别在官方 API 上等免费。老教程里的 moonshot-v1-8k/32k/128k 与 kimi-k2.5 已于 2026-08-31 16:00 退役，现在调用返回 404。'
   },
@@ -8850,7 +8851,7 @@ function renderAccess() {
     downloadFile('gateway.env', buildGatewayEnv(plan), 'text/plain'));
 }
 
-  const PROBE_SNAPSHOT = {"schema":1,"generatedAt":"2026-11-06T03:33:35Z","runner":"github-actions","total":22,"probed":22,"counts":{"ok":2,"auth":19,"badkey":0,"forbidden":0,"notfound":0,"ratelimited":1,"server":0,"unreachable":0,"error":0,"skipped":0},"results":{"openai":{"status":"auth","http":401,"ms":165,"keyed":false,"at":"2026-11-06T03:33:31Z","detail":"Missing bearer [redacted] in header"},"anthropic":{"status":"auth","http":401,"ms":134,"keyed":false,"at":"2026-11-06T03:33:31Z","detail":"x-api-key [redacted] is required"},"gemini":{"status":"auth","http":403,"ms":91,"keyed":false,"at":"2026-11-06T03:33:31Z","detail":"Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API."},"deepseek":{"status":"auth","http":401,"ms":449,"keyed":false,"at":"2026-11-06T03:33:31Z","detail":"Authentication Fails (governor)"},"bailian":{"status":"auth","http":401,"ms":797,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."},"volc":{"status":"auth","http":401,"ms":768,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"the API key or AK/SK in the request is missing or invalid. request id: 021793936012027a7468c13ae862cf181a1dbcac0db1f828f2f0a"},"moonshot":{"status":"auth","http":401,"ms":1385,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"Incorrect API key provided"},"zhipu":{"status":"auth","http":401,"ms":727,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"Header中未收到Authorization参数，无法进行身份验证。"},"minimax":{"status":"auth","http":401,"ms":951,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"},"xai":{"status":"auth","http":401,"ms":131,"keyed":false,"at":"2026-11-06T03:33:31Z","detail":"No credentials presented."},"hunyuan":{"status":"auth","http":401,"ms":1880,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."},"qianfan":{"status":"ratelimited","http":429,"ms":2924,"keyed":false,"at":"2026-11-06T03:33:35Z","detail":"Over rate limit."},"spark":{"status":"auth","http":401,"ms":956,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Unauthorized"},"mistral":{"status":"auth","http":401,"ms":197,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"Invalid API Key"},"sensenova":{"status":"auth","http":401,"ms":1584,"keyed":false,"at":"2026-11-06T03:33:34Z","detail":"Authorization [redacted] Found"},"longcat":{"status":"auth","http":401,"ms":427,"keyed":false,"at":"2026-11-06T03:33:32Z","detail":"missing_api_key"},"openrouter":{"status":"ok","http":200,"ms":102,"keyed":false,"at":"2026-11-06T03:33:32Z"},"groq":{"status":"auth","http":401,"ms":171,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Invalid API Key"},"siliconflow":{"status":"auth","http":401,"ms":952,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Token is invalid."},"github-models":{"status":"ok","http":200,"ms":340,"keyed":true,"at":"2026-11-06T03:33:33Z"},"together":{"status":"auth","http":401,"ms":193,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Missing API key"},"cerebras":{"status":"auth","http":403,"ms":118,"keyed":false,"at":"2026-11-06T03:33:33Z","detail":"Not authenticated"}}};
+  const PROBE_SNAPSHOT = {"schema":1,"generatedAt":"2026-11-07T21:56:44Z","runner":"github-actions","total":22,"probed":22,"counts":{"ok":2,"auth":19,"badkey":0,"forbidden":1,"notfound":0,"ratelimited":0,"server":0,"unreachable":0,"error":0,"skipped":0},"results":{"openai":{"status":"auth","http":401,"ms":143,"keyed":false,"at":"2026-11-07T21:56:40Z","detail":"Missing bearer [redacted] in header"},"anthropic":{"status":"auth","http":401,"ms":91,"keyed":false,"at":"2026-11-07T21:56:40Z","detail":"x-api-key [redacted] is required"},"gemini":{"status":"auth","http":403,"ms":73,"keyed":false,"at":"2026-11-07T21:56:40Z","detail":"Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API."},"deepseek":{"status":"auth","http":401,"ms":556,"keyed":false,"at":"2026-11-07T21:56:40Z","detail":"Authentication Fails (governor)"},"bailian":{"status":"auth","http":401,"ms":1158,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"You didn't provide an API key. You need to provide your API key in an Authorization [redacted] using Bearer [redacted] (i.e. Authorization [redacted] YOUR_KEY)."},"volc":{"status":"auth","http":401,"ms":948,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"the API key or AK/SK in the request is missing or invalid. request id: 0217940886012108d3e4b01d6ad52cd92e5ce15c4762460418a45"},"moonshot":{"status":"auth","http":401,"ms":2128,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Incorrect API key provided"},"zhipu":{"status":"auth","http":401,"ms":656,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"Header中未收到Authorization参数，无法进行身份验证。"},"minimax":{"status":"auth","http":401,"ms":1086,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"login fail: Please carry the API secret key in the 'Authorization' field of the request header (1004)"},"xai":{"status":"auth","http":401,"ms":97,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"No credentials presented."},"hunyuan":{"status":"auth","http":401,"ms":2095,"keyed":false,"at":"2026-11-07T21:56:43Z","detail":"Incorrect API key provided: . You can find your API key at https://console.cloud.tencent.com/hunyuan/start."},"qianfan":{"status":"forbidden","http":403,"ms":2850,"keyed":false,"at":"2026-11-07T21:56:44Z","detail":"Access denied."},"spark":{"status":"auth","http":401,"ms":1042,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Unauthorized"},"mistral":{"status":"auth","http":401,"ms":160,"keyed":false,"at":"2026-11-07T21:56:41Z","detail":"Invalid API Key"},"sensenova":{"status":"auth","http":401,"ms":1274,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Authorization [redacted] Found"},"longcat":{"status":"auth","http":401,"ms":427,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"missing_api_key"},"openrouter":{"status":"ok","http":200,"ms":43,"keyed":false,"at":"2026-11-07T21:56:42Z"},"groq":{"status":"auth","http":401,"ms":124,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Invalid API Key"},"siliconflow":{"status":"auth","http":401,"ms":1089,"keyed":false,"at":"2026-11-07T21:56:43Z","detail":"Token is invalid."},"github-models":{"status":"ok","http":200,"ms":47,"keyed":true,"at":"2026-11-07T21:56:42Z"},"together":{"status":"auth","http":401,"ms":131,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Missing API key"},"cerebras":{"status":"auth","http":403,"ms":115,"keyed":false,"at":"2026-11-07T21:56:42Z","detail":"Not authenticated"}}};
   /* ============================================================
    自动探活结果展示（Probe）
    ------------------------------------------------------------
@@ -10135,7 +10136,7 @@ VIEWS.verify = {
 };
 
 
-  const CC_SOURCES_SNAPSHOT = {"schema":1,"fetchedAt":"2026-11-06T03:33:35Z","runner":"github-actions","note":"只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。","sources":[{"id":"freetoken","name":"FreeToken","checkedAt":"2026-10-22","axis":"额度口径","url":"https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json","status":"ok","note":"台账 updated 字段 · 共 16 条 provider"},{"id":"intel","name":"free-llm-intel","checkedAt":"2026-11-06","axis":"额度口径","url":"https://github.com/rockbenben/free-llm-intel","status":"ok","note":"README 巡检时间戳 2026-11-06 10:43:18（原文未标时区，按日期粒度记）"},{"id":"relays","name":"justjavac/free-models","checkedAt":"2026-11-05T07:03:26Z","axis":"中转覆盖","url":"https://models.denohub.com/catalog.json","status":"ok","note":"HTTP Last-Modified 响应头（随每次部署更新）"}]};
+  const CC_SOURCES_SNAPSHOT = {"schema":1,"fetchedAt":"2026-11-07T21:56:44Z","runner":"github-actions","note":"只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。","sources":[{"id":"freetoken","name":"FreeToken","checkedAt":"2026-10-22","axis":"额度口径","url":"https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json","status":"ok","note":"台账 updated 字段 · 共 16 条 provider"},{"id":"intel","name":"free-llm-intel","checkedAt":"2026-11-07","axis":"额度口径","url":"https://github.com/rockbenben/free-llm-intel","status":"ok","note":"README 巡检时间戳 2026-11-07 10:06:51（原文未标时区，按日期粒度记）"},{"id":"relays","name":"justjavac/free-models","checkedAt":"2026-11-05T07:03:26Z","axis":"中转覆盖","url":"https://models.denohub.com/catalog.json","status":"ok","note":"HTTP Last-Modified 响应头（随每次部署更新）"}]};
 
   /* ============================================================
    双源交叉校验（Cross-Check）
@@ -10400,6 +10401,19 @@ function ccFreshLevel(iso, axis, now) {
   return { cls: 'red', text: '已过期' };
 }
 
+/* 状态文案：只有 ok 才是「这轮真的复核过了」。
+   其余一律明说日期从哪来，别拿基线的天数冒充新鲜度。 */
+const CC_STATUS_NOTE = {
+  unreachable: '本次联网复核失败，沿用基线',
+  'no-date':   '本轮未取到时间戳，沿用基线',
+  offline:     '离线基线，未经 CI 复核',
+  baseline:    '人工核实，非自动更新',
+  missing:     '尚未跑过探活'
+};
+function ccStatusNote(status) {
+  return CC_STATUS_NOTE[status] || '';
+}
+
 /* 纯函数：生成新鲜度条的行，单测直接喂固定时间 */
 function ccFreshnessRows(now, srcSnap, probeSnap, dataDate) {
   const snap = srcSnap && Array.isArray(srcSnap.sources) ? srcSnap.sources : [];
@@ -10543,11 +10557,11 @@ function renderCrosscheck() {
       </div>
       <div class="cc-fresh-grid">
         ${freshRows.map(r => `
-          <div class="cc-fresh-item">
+          <div class="cc-fresh-item" data-ccstatus="${ccEsc(r.status)}">
             <span class="chip ${r.level.cls}">${esc(r.level.text)}</span>
             <b>${esc(r.name)}</b>
             <span class="cc-fresh-meta">${esc(r.axis)} · ${esc(r.checkedAt || '时间不明')}${r.days != null ? ' · 距今 ' + r.days + ' 天' : ''}</span>
-            ${r.status === 'unreachable' ? '<em>本次联网复核失败，沿用基线</em>' : ''}
+            ${ccStatusNote(r.status) ? `<em class="${r.status === 'baseline' ? 'cc-note-neutral' : ''}">${ccEsc(ccStatusNote(r.status))}</em>` : ''}
           </div>`).join('')}
       </div>
       <p class="cc-fresh-note"><b>别把两种新鲜度混为一谈：</b>探活只回答「端点接不接得通」，不更新任何额度口径；
@@ -10608,8 +10622,9 @@ function renderCrosscheck() {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT,
+    CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT, CC_STATUS_NOTE,
     ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
+    ccStatusNote,
     ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,
     ccSourcesSnapshot, ccProbeSnapshot, ccEvidenceFor, ccBadgeFor,
     ccFocusVerify, ccFocusCross, ccApplyFocus, renderCrosscheck

@@ -114,9 +114,14 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 **三处联动**：接入核验卡片对冲突厂商直接列出两个外部来源的说法，可一键跳到三方比对；交叉校验页点厂商名按 id 跳回核验卡片并高亮。平台库 48 家里只有 22 家能映射到接入总表（Meta Llama 无对应条目，网页版 / 编程工具 / 礼包类不在「官方免费 API」这一轴），所以只给这 22 家加轻量角标，不假装全覆盖。
 
-**数据新鲜度**：页面顶部列出本项目口径日期、三个外部来源的核实 / 巡检时间戳和最近一次端点探活。`quota-hub/probe/sources.py` 由 `probe.yml` 每 6 小时跑一次，只抓三源公开的时间戳（FreeToken 台账 `updated`、free-llm-intel README 巡检戳、free-models 的 HTTP 时间头），**不解析额度内容**——脚本替不了人判断谁说得对。抓不到就标 `unreachable` 并沿用基线日期，不假装更新过。探活与口径是两种新鲜度：探活只证明端点接得通，不更新任何额度数字。
+**数据新鲜度**：页面顶部列出本项目口径日期、三个外部来源的核实 / 巡检时间戳和最近一次端点探活。`quota-hub/probe/sources.py` 由 `probe.yml` 每 6 小时跑一次，只抓三源公开的时间戳（FreeToken 台账 `updated`、free-llm-intel README 巡检戳、free-models 的 HTTP 时间头），**不解析额度内容**——脚本替不了人判断谁说得对。抓不到就标 `unreachable` 并沿用基线日期，不假装更新过。探活与口径是两种新鲜度：探活只证明端点接得通，不更新任何额度数字。卡片只对 `ok` 不写说明；`unreachable / no-date / offline / baseline / missing` 一律注明日期从哪来，不拿基线的天数冒充「新鲜」。
 
-有个容易漏的坑：bot 用 `GITHUB_TOKEN` 提交的 push **不会触发其它工作流**（GitHub 的防循环机制），而 Pages 与 probe 并发、跑在提交之前，内联的还是旧快照。所以 `probe.yml` 在提交成功后会 `gh workflow run pages.yml` 显式派发一次发布，让 `build.py` 重新内联刚提交的 JSON——否则「每 6 小时复核」只更新了仓库里的文件，线上页面永远看不到。派发失败只告警、不让 probe 报红。
+**数据层门禁**：`quota-hub/check-confidence.js` 把 23 家交叉校验结论与平台库 `confidence` 逐 id 比对（22 家可映射，`llama` 无官方 API 属正常跳过）。只卡一条硬逻辑：三方比对已判 `conflict / gap / unknown` 的厂商，平台库不能标 `verified`（其定义是「多来源一致 / 官方明确」）。`--check` 让 CI 红，由人裁定，不自动改写人工判断；`--out` 可导出可核对的映射表。这条门禁实测抓出一处真漂移：**Kimi 已是三方硬冲突却标 `verified`**，已改为 `disputed` 并注明冲突来源。`agree / solo` 不受约束——「存在性一致」与「限速数字有分歧」是两根轴。
+
+有两个容易漏的坑，都已堵上：
+
+1. bot 用 `GITHUB_TOKEN` 提交的 push **不会触发其它工作流**（GitHub 的防循环机制），而 Pages 与 probe 并发、跑在提交之前，内联的还是旧快照。所以 `probe.yml` 提交成功后会 `gh workflow run pages.yml` 显式派发一次发布，让 `build.py` 重新内联刚提交的 JSON。派发失败只告警、不让 probe 报红。
+2. 只更新 JSON 不重建仓库根那份单文件 HTML，离线下载的人永远拿到上一轮快照。现在 `probe.yml` 在提交前也跑一次 `build.py`，并校验 `fetchedAt` 确实内联进 HTML，再把产物和两个 JSON 一起提交——「clone 下来双击」和线上是同一份数据。
 
 
 
@@ -139,8 +144,10 @@ node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本�
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
 python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
 python test-sources.py   # 来源时间戳 14 项：离线兜底、字段解析（含上游加粗巡检戳）、单源失败隔离、产物结构
-node test-crosscheck.js  # 双源交叉校验 40 项：立场归一、判定、新鲜度、联动、平台库 id 映射
-node smoke/run.js        # 浏览器冒烟 324 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
+node test-crosscheck.js  # 双源交叉校验 44 项：立场归一、判定、新鲜度状态文案、联动、平台库 id 映射
+node test-confidence.js  # confidence 门禁 15 项：规则、22 家映射、漂移检出、CLI 退出码
+node check-confidence.js --check   # 数据层门禁（CI 也跑，有漂移退出 1）
+node smoke/run.js        # 浏览器冒烟 332 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
 ```
 
 `test-probe.py` 用本地 `http.server` 造 200/401/404/500/超时五种端点，所以不需要外网、不碰任何真平台的账号。其中一条断言是：错误响应体里回显了 key 时必须被 `[redacted]` 掉。
@@ -160,11 +167,12 @@ GitHub同类项目调研.md            11 个同类项目的定位与能力矩�
 probe.json                      自动探活结果（Actions 每 6 小时更新）
 crosscheck-sources.json         三源时间戳快照（Actions 每 6 小时复核）
 .github/workflows/pages.yml     push 后自动发布到 GitHub Pages
-.github/workflows/probe.yml     每 6 小时探活 + 复核来源时间戳并提交
+.github/workflows/probe.yml     每 6 小时探活 + 复核来源 + 重建离线产物 + 数据门禁 + 派发 Pages
 docs/screenshot-overview.png    README 用的界面截图
 quota-hub/
   build.py                 注入式构建
-  test-*.js / test-*.py 16 个测试文件
+  test-*.js / test-*.py 17 个测试文件
+  check-confidence.js     交叉校验结论 ↔ 平台库 confidence 一致性门禁（--check / --out）
   probe/
     gen_endpoints.js       从 verify.js 抽端点清单（--check 校验漂移）
     endpoints.json         生成的端点清单，别手改
