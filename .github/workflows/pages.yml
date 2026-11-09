@@ -14,10 +14,14 @@ permissions:
   pages: write
   id-token: write
 
-# 同一时间只跑一个发布，新的 push 打断旧的排队（但不打断正在部署的）
+# 同一时间只跑一个发布。
+# 换用新组名 + cancel-in-progress：原先的 `group: pages` 里，probe 提交后
+# 显式派发的 run 会把还在排队的 push run 顶掉，被顶掉的那两条既没创建 job
+# 也没释放组锁，导致后续 run 永久 queued。换组绕开残留锁；新 run 直接取消
+# 同组旧 run，避免「push 一次 + probe 派发一次」再堆出排队链。
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-deploy-v2
+  cancel-in-progress: true
 
 jobs:
   preflight:
