@@ -46,7 +46,8 @@ const check = (ok, msg, extra) => {
   else console.log(`  ✓ ${msg}`);
 };
 
-const PY = 'C:/Users/zhouy/.workbuddy/binaries/python/versions/3.13.12/python.exe';
+/* 同 test-access：解释器走统一解析，别写死本机绝对路径 */
+const PY = require('./pybin').resolvePython();
 const tmp = path.join(__dirname, '.tmp-export');
 fs.mkdirSync(tmp, { recursive: true });
 

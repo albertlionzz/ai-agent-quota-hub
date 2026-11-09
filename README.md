@@ -131,7 +131,7 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 1. bot 用 `GITHUB_TOKEN` 提交的 push **不会触发其它工作流**（GitHub 的防循环机制），而 Pages 与 probe 并发、跑在提交之前，内联的还是旧快照。所以 `probe.yml` 提交成功后会 `gh workflow run pages.yml` 显式派发一次发布，让 `build.py` 重新内联刚提交的 JSON。派发失败只告警、不让 probe 报红。
 2. 只更新 JSON 不重建仓库根那份单文件 HTML，离线下载的人永远拿到上一轮快照。现在 `probe.yml` 在提交前也跑一次 `build.py`，并校验 `fetchedAt` 确实内联进 HTML，再把产物和两个 JSON 一起提交——「clone 下来双击」和线上是同一份数据。
 3. 重建完顺手跑 `smoke/narrow.js`：产物刚生成，正好验证 320 / 360 / 518 / 768 四档在说明块收起与展开两态都不横向溢出。浏览器路径由 `smoke/browser.js` 跨平台解析（本机 Edge、CI 上 runner 预装的 Chrome，Linux 自动补 `--no-sandbox`）；runner 换镜像没装浏览器时只告警跳过，不因环境问题让探活整条变红。`push.paths` 已覆盖 `assets/**`、`smoke/**`、`build.py`，改了样式或 harness 会立刻触发一次验证。
-4. `probe.yml` 里现在是三道门禁而不是一道：**单元测试门禁**（16 个 Node 套件 + 2 个 Python 套件，`set -o pipefail` + 逐套件 `tail -2`，红了直接退出）、**真实窄屏回归**、**浏览器冒烟**（500 项 × 4 场景）。冒烟是用户实际点得到的路径，所以它算真门禁；和窄屏分成两步，失败时一眼能看出是「功能坏了」还是「窄屏溢出」。此前 CI 只校验数据一致性，逻辑回归得靠人本地跑——18 套件接进来后，「改了 A 弄坏 B」在这一步就红。
+4. `probe.yml` 里现在是三道门禁而不是一道：**单元测试门禁**（17 个 Node 套件 + 2 个 Python 套件，`set -o pipefail` + 逐套件 `tail -2`，红了直接退出）、**真实窄屏回归**、**浏览器冒烟**（500 项 × 4 场景）。冒烟是用户实际点得到的路径，所以它算真门禁；和窄屏分成两步，失败时一眼能看出是「功能坏了」还是「窄屏溢出」。此前 CI 只校验数据一致性，逻辑回归得靠人本地跑——19 个套件接进来后，「改了 A 弄坏 B」在这一步就红。**它第一次跑就抓到真 bug**：`test-access.js` / `test-export.js` 把 Python 解释器绝对路径写死成本机 Windows 路径，本地全绿、runner 必挂；现在统一走 `pybin.js` 按 `PYTHON_BIN` → 本机 venv → PATH 探测，并真跑一次 `import` 验证。`test-pybin.js` 留了一条守卫：任何 `test-*.js` 里再出现 `C:/Users/...python` 就红。
 4. `pages.yml` 用 `concurrency: pages`（`cancel-in-progress: false`），同一时间只留一个发布在排队。手动 push 触发的发布若还没轮到，probe 提交后显式派发的那次会把它顶掉——GitHub 把被顶掉的 run 标成 `failure` 且**一个 job 都没有**，看着像构建挂了，其实只是排队请求被替换。区分方法：查 Actions API 的 `jobs.total_count`，为 0 就是排队替换、不是代码故障；单独再触发一次发布即可，站点以最新一次成功部署为准。
 
 
@@ -183,11 +183,12 @@ GitHub同类项目调研.md            11 个同类项目的定位与能力矩�
 probe.json                      自动探活结果（Actions 每 6 小时更新）
 crosscheck-sources.json         三源时间戳快照（Actions 每 6 小时复核）
 .github/workflows/pages.yml     push 后自动发布到 GitHub Pages
-.github/workflows/probe.yml     每 6 小时探活 + 复核来源 + 重建离线产物 + 数据门禁 + 真实窄屏回归 + 派发 Pages
+.github/workflows/probe.yml     每 6 小时探活 + 复核来源 + 单测门禁 + 重建离线产物 + 窄屏/冒烟门禁 + 派发 Pages
 docs/screenshot-overview.png    README 用的界面截图
 quota-hub/
   build.py                 注入式构建
-  test-*.js / test-*.py 18 个测试文件
+  pybin.js                 跨平台找 Python（PYTHON_BIN → 本机 venv → PATH，真跑 import 验证）
+  test-*.js / test-*.py 19 个测试文件（含 test-pybin.js 的路径写死守卫）
   check-confidence.js     交叉校验结论 ↔ 平台库 confidence 一致性门禁（--check / --out）
   probe/
     gen_endpoints.js       从 verify.js 抽端点清单（--check 校验漂移）

@@ -51,8 +51,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 单测门禁：18 个 Node 套件 + 2 个 Python 套件。此前 CI 只校验数据一致性，
+      # test-access.js 用真 PyYAML 解析生成的 litellm_config.yaml（正则糊不过去）。
+      # runner 的 setup-python 不带它，显式装一下，约 1 秒。
+      - name: 装 PyYAML（YAML 校验依赖）
+        run: python -m pip install --quiet --disable-pip-version-check pyyaml
+
+      # 单测门禁：17 个 Node 套件 + 2 个 Python 套件。此前 CI 只校验数据一致性，
       # 逻辑回归得靠人本地跑；接进来后「改了 A 弄坏 B」在这一步就红，不用等上线。
+      # 这一步第一次跑就抓出真问题：两个测试把 Python 解释器绝对路径写死成本机
+      # Windows 路径，CI 上必挂 —— 现在统一走 pybin.js 解析。
       - name: 单元测试门禁
         run: |
           set -o pipefail

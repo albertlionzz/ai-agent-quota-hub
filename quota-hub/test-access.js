@@ -160,7 +160,15 @@ console.log('\n=== 3b. 通用 .env（OmniRoute / FreeLLMAPI 共用那层）===')
 console.log('\n=== 4. 网关配置生成 ===');
 const TMP = fs.existsSync(path.join(__dirname, '.tmp-acc')) ? null : fs.mkdirSync(path.join(__dirname, '.tmp-acc'));
 const OUT = path.join(__dirname, '.tmp-acc');
-const PY = 'C:/Users/zhouy/.workbuddy/binaries/python/envs/default/Scripts/python.exe';
+/* 解释器路径不能写死：本机是托管 venv，CI 上是 setup-python 的 python3。
+   YAML 校验要求真解析器，所以这里连带确认 PyYAML 在。 */
+let PY;
+try {
+  PY = require('./pybin').resolvePython({ yaml: true });
+} catch (e) {
+  console.error('\n' + e.message + '\n');
+  process.exit(1);
+}
 
 let cfgCount = 0;
 for (const tpl of pbox.PIPELINE_TEMPLATES) {
