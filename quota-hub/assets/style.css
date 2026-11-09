@@ -696,6 +696,48 @@ tr.cc-focus { background: var(--blue-soft) !important; }
 .cd-note { margin-top: 9px; font-size: 11px; line-height: 1.65; color: var(--ink-3); overflow-wrap: anywhere; }
 .cd-note b { color: var(--ink-2); font-weight: 650; }
 
+/* --- 判定 × 可信度 联合分布矩阵 --- */
+.cc-joint { padding: 13px 15px; margin-bottom: 12px; }
+.cj-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 3px; font-size: 11.5px; }
+.cj-table th { font-weight: 600; color: var(--ink-2); text-align: left; padding: 3px 4px; vertical-align: middle; }
+.cj-table thead th { font-size: 10.5px; color: var(--ink-3); font-weight: 600; text-align: center; padding-bottom: 5px; }
+.cj-table thead th .cd-dot { display: inline-block; vertical-align: middle; margin-right: 3px; }
+.cj-table th[scope="row"] { width: 30%; }
+.cj-table th[scope="row"] b { display: block; font-size: 11.5px; font-weight: 650; color: var(--ink); }
+.cj-table th[scope="row"] em {
+  display: block; font-style: normal; font-size: 9.5px; line-height: 1.35;
+  color: var(--ink-3); margin-top: 1px; overflow-wrap: anywhere;
+}
+.cj-corner { width: 30%; font-size: 10px !important; color: var(--ink-3) !important; line-height: 1.4; }
+.cj-cell { padding: 0; text-align: center; }
+.cj-btn {
+  display: block; width: 100%; padding: 9px 0; border: 0; border-radius: 7px;
+  font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--ink);
+  cursor: pointer; transition: box-shadow .12s, transform .12s;
+}
+.cj-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(20,22,26,.12); }
+.cj-btn.on { box-shadow: inset 0 0 0 2px var(--accent); }
+.cj-empty { color: var(--ink-3); font-family: var(--mono); font-size: 11px; padding: 9px 0; }
+.cj-tot { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding: 4px 0; }
+.cj-table tfoot th { font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+.cj-row-on th[scope="row"] b { color: var(--accent); }
+/* 窄屏放不下「多源核实」四个字，换成两字短标签；长标签默认显示 */
+.cj-hs { display: none; }
+
+@media (max-width: 520px) {
+  .cc-joint { padding: 11px 12px; }
+  .cj-table { border-spacing: 2px; font-size: 11px; }
+  .cj-table th[scope="row"] { width: 27%; }
+  .cj-table th[scope="row"] em { font-size: 9px; }
+  .cj-btn { padding: 8px 0; font-size: 11.5px; }
+  /* 列宽只有 ~48px，四字标签会被挤成一列竖排单字，必须换短标签 */
+  .cj-hl { display: none; }
+  .cj-hs { display: inline; }
+  .cj-table thead th { font-size: 10.5px; line-height: 1.3; white-space: nowrap; }
+  .cj-table thead th .cd-dot { display: none; }
+  .cj-corner { font-size: 9px !important; line-height: 1.35 !important; }
+}
+
 @media (max-width: 520px) {
   .conf-dist { padding: 10px 11px; }
   .cd-bar { height: 22px; }

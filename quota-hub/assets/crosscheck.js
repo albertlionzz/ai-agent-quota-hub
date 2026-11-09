@@ -527,6 +527,12 @@ function renderCrosscheck() {
       <div class="kpi"><div class="k-label">待核</div><div class="k-val">${cnt.gap + cnt.unknown}</div><div class="k-foot">外部亦无定论</div></div>
     </div>
 
+    <div class="card cc-joint" id="cc-joint">
+      ${typeof confJointHtml === 'function'
+        ? confJointHtml(confJoint(PLATFORMS), state.filters.cc, state.filters.conf)
+        : ''}
+    </div>
+
     <div class="cc-filters">
       ${filterBtn('all', '全部', CROSSCHECK.length)}
       ${filterBtn('conflict', '冲突', cnt.conflict)}
@@ -566,6 +572,13 @@ function renderCrosscheck() {
   });
   wrap.querySelectorAll('[data-ccv]').forEach(b => {
     b.addEventListener('click', () => ccFocusVerify(b.dataset.ccv));
+  });
+  /* 联合分布：一个格子 = 两个筛选条件，图省事但要说清楚 */
+  wrap.querySelectorAll('[data-jcc]').forEach(b => {
+    b.addEventListener('click', () => {
+      const parts = String(b.dataset.jcc).split('|');
+      if (typeof confFocusCross === 'function') confFocusCross(parts[0], parts[1]);
+    });
   });
   ccApplyFocus('data-ccid', 'cc-focus');
 }

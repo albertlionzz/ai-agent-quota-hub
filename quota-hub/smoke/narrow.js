@@ -55,6 +55,16 @@ document.getElementById('f').addEventListener('load', function () {
       out.closed = snap();
       if (why) why.open = true;
       out.opened = snap();
+      /* 联合分布矩阵在另一个视图，切过去单独量一次 */
+      var cn = d.querySelector('[data-v="crosscheck"]'); if (cn) cn.click();
+      var jt = d.querySelector('.cj-table'), jc = d.querySelector('.cc-joint');
+      out.joint = {
+        docScroll: d.documentElement.scrollWidth,
+        docClient: d.documentElement.clientWidth,
+        tableOverflow: jt ? jt.scrollWidth - jt.clientWidth : -1,
+        cardOverflow: jc ? jc.scrollWidth - jc.clientWidth : -1,
+        cells: d.querySelectorAll('.cj-btn').length
+      };
     } catch (e) { out.error = e.message; }
     document.getElementById('__res__').textContent = JSON.stringify(out);
   }, 400);
@@ -100,6 +110,11 @@ WIDTHS.forEach(w => {
       ok('筛选组分成 3 行', new Set(s.filterRows).size === 3, s.filterRows.join(','));
     }
   });
+  const j = r.joint || {};
+  ok('联合分布矩阵无横向溢出', j.docScroll <= j.docClient + 1, j.docScroll + '/' + j.docClient);
+  ok('矩阵表格与卡片都无内部溢出', j.tableOverflow <= 1 && j.cardOverflow <= 1,
+    'table ' + j.tableOverflow + ' / card ' + j.cardOverflow);
+  ok('窄屏下矩阵仍渲染 11 个可点格子', j.cells === 11, j.cells);
 });
 
 console.log('\n窄屏回归：' + pass + ' 通过 / ' + fail + ' 失败');

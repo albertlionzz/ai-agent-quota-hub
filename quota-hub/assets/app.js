@@ -342,6 +342,12 @@
       });
     }
 
+    /* 筛选按钮只渲染一次，但 state 也可能被别处改（联合分布矩阵、旧 localStorage
+       回填）——每次渲染都把高亮对齐，否则会出现「结果是 10 条、按钮还亮着全部」。 */
+    $$('#filter-bar .fbtn').forEach(b => {
+      b.classList.toggle('on', state.filters[b.dataset.g] === b.dataset.v);
+    });
+
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 

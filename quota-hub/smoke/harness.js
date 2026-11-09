@@ -469,6 +469,60 @@
       return x.getAttribute('data-ccf') === 'all';
     })[0];
     if (allBtn) allBtn.click();
+
+    /* ---------- 判定 × 可信度 联合分布 ---------- */
+    var joint = q('#view-crosscheck .cc-joint', view);
+    add('联合分布矩阵已渲染', !!joint && !!q('.cj-table', joint));
+    add('矩阵数据行 = 5（冲突/待核/一致/单源/未覆盖）',
+      qa('#view-crosscheck .cj-table tbody tr', view).length === 5,
+      qa('#view-crosscheck .cj-table tbody tr', view).length);
+    add('矩阵可点格子 = 11（5×3 里的非零格）',
+      qa('#view-crosscheck .cj-btn', view).length === 11,
+      qa('#view-crosscheck .cj-btn', view).length);
+    add('矩阵标题写清 48 条并说明「点格子同时套用两个筛选」', (function () {
+      if (!joint) return false;
+      var t = txt(joint);
+      return /共\s*48\s*条/.test(t) && /点格子同时套用两个筛选/.test(t);
+    })(), joint ? txt(joint).replace(/\s+/g, ' ').slice(0, 50) : 'missing');
+    /* 矩阵不随 conf/cc 筛选收缩，否则点一次就只剩一格 */
+    add('默认态没有任何格子/行被高亮',
+      qa('#view-crosscheck .cj-btn.on', view).length === 0 &&
+      qa('#view-crosscheck .cj-row-on', view).length === 0);
+
+    var jcell = q('#view-crosscheck [data-jcc="none|verified"]');
+    add('「未覆盖 × 核实」格子存在', !!jcell);
+    if (jcell) {
+      jcell.click();
+      var rcAfter = q('#result-count');
+      add('点格子落到平台库 10 条（两个筛选同时生效）',
+        !!rcAfter && rcAfter.textContent.indexOf('10 /') === 0,
+        rcAfter ? rcAfter.textContent : 'missing');
+      var onCc = q('#filter-bar .fbtn.on[data-g="cc"]');
+      var onConf = q('.cd-key.on[data-conf]');
+      add('交叉校验筛选被设成「未覆盖」',
+        !!onCc && onCc.getAttribute('data-v') === 'none',
+        onCc ? onCc.getAttribute('data-v') : 'missing');
+      add('可信度筛选被设成「多源核实」',
+        !!onConf && onConf.getAttribute('data-conf') === 'verified',
+        onConf ? onConf.getAttribute('data-conf') : 'missing');
+      /* 回到交叉校验：矩阵仍应显示全貌 48，且只有选中那一格高亮 */
+      navTo('crosscheck');
+      add('矩阵统计不随自身筛选收缩（仍 48 条）',
+        /共\s*48\s*条/.test(txt(q('#view-crosscheck .cc-joint'))),
+        txt(q('#view-crosscheck .cc-joint')).replace(/\s+/g, ' ').slice(0, 40));
+      add('矩阵选中态只高亮一格', qa('#view-crosscheck .cj-btn.on').length === 1,
+        qa('#view-crosscheck .cj-btn.on').length);
+      add('对应行也高亮', qa('#view-crosscheck .cj-row-on').length === 1,
+        qa('#view-crosscheck .cj-row-on').length);
+      /* 复位：这套组合会污染 s23 的计数断言 */
+      var ccAll = q('#filter-bar .fbtn[data-g="cc"][data-v="all"]');
+      var cdClear = q('.cd-clear');
+      if (ccAll) ccAll.click();
+      if (cdClear) cdClear.click();
+      var rcReset = q('#result-count');
+      add('复位后回到 48 条', !!rcReset && rcReset.textContent.indexOf('48 /') === 0,
+        rcReset ? rcReset.textContent : 'missing');
+    }
   }
 
   /* ---------- 22. 交叉校验 ↔ 接入核验 双向联动 ---------- */

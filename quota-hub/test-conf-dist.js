@@ -138,5 +138,128 @@ ok('空 breakdown 也能渲染出完整骨架', () => {
   assert(h.includes('基于当前其它筛选条件的 <b>0</b> 条'));
 });
 
+/* ============================================================
+   判定 × 可信度 联合分布
+   需要在同一作用域里同时拿到 data / crosscheck / confidence，
+   否则 confJoint 找不到 ccVerdictOf，所有条目都会掉进「未覆盖」。
+   ============================================================ */
+const X = {};
+new Function('exports', ['data.js', 'crosscheck.js', 'confidence.js']
+  .map(f => fs.readFileSync(path.join(__dirname, 'assets', f), 'utf8')).join('\n') +
+  '\n;Object.assign(exports,{PLATFORMS,confJoint,confJointHtml,confFocusCross,ccVerdictOf,CC_FILTERS});')(X);
+
+ok('矩阵行定义与交叉校验档位对齐（5 行，pending 合并 gap+unknown）', () => {
+  eq(C.CONF_CC_ROWS.length, 5);
+  eq(C.CONF_CC_ROWS.map(r => r.cc).join(','), 'conflict,pending,agree,solo,none');
+  eq(C.CONF_CC_ROWS[1].key, 'pending');
+});
+
+ok('48 家真实数据：行合计 2 / 3 / 9 / 10 / 24，加总 48', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  eq(j.total, 48);
+  eq(j.other, 0);
+  eq(j.rows.map(r => r.total).join(','), '2,3,9,10,24');
+  eq(j.rows.reduce((a, r) => a + r.total, 0), 48);
+});
+
+ok('列合计 15 / 21 / 12，与独立算出的可信度分布一致', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  eq(j.colTotals.join(','), '15,21,12');
+  const bd = C.confBreakdown(d.PLATFORMS);
+  eq(j.colTotals.join(','), bd.rows.map(r => r.count).join(','));
+});
+
+ok('每个格子的横竖加总都闭合（无丢条、无重复计）', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  j.rows.forEach(r => eq(r.cells.reduce((a, b) => a + b, 0) + r.other, r.total, r.label));
+  j.cols.forEach((c, i) => {
+    eq(j.rows.reduce((a, r) => a + r.cells[i], 0), j.colTotals[i], c.key);
+  });
+});
+
+ok('实质结论：口径冲突全部落在「冲突」可信度上（不再有「冲突却已核实」）', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  const row = j.rows.find(r => r.key === 'conflict');
+  eq(row.cells[2], 2);                  // disputed
+  eq(row.cells[0], 0);                  // verified
+  eq(row.cells[1], 0);                  // reported
+});
+
+ok('实质结论：仅本项目覆盖以单源为主，不能当硬事实', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  const row = j.rows.find(r => r.key === 'solo');
+  eq(row.cells[1], 7);                  // reported 最多
+  assert(row.cells[1] > row.cells[0], '单源应多于核实');
+});
+
+ok('未覆盖行仍有大量已核实条目：说明是轴的边界而非数据质量差', () => {
+  const j = X.confJoint(d.PLATFORMS);
+  const row = j.rows.find(r => r.key === 'none');
+  eq(row.cells[0], 10);
+  assert(row.cells[0] > 0);
+});
+
+ok('脏输入不抛错：非数组 / null / 未知可信度归 other', () => {
+  eq(X.confJoint(null).total, 0);
+  eq(X.confJoint('x').total, 0);
+  const j = X.confJoint([{ id: 'openai', confidence: 'rumor' }, null]);
+  eq(j.total, 2);
+  eq(j.other, 2);
+  eq(j.rows.reduce((a, r) => a + r.cells.reduce((x, y) => x + y, 0), 0), 0);
+});
+
+const j48 = X.confJoint(d.PLATFORMS);
+const jh = X.confJointHtml(j48, 'all', 'all');
+ok('表格渲染 5 个数据行、恰好 11 个非空格子', () => {
+  eq((jh.match(/<tr[ >]/g) || []).length, 7);            // 表头 + 5 行 + 表尾
+  eq((jh.match(/class="cj-btn/g) || []).length, 11);
+  eq((jh.match(/class="cj-cell cj-empty"/g) || []).length, 4);
+});
+ok('每个可点格子带两个筛选值，格式 cc|conf', () => {
+  const cells = [...jh.matchAll(/data-jcc="([^"]+)"/g)].map(m => m[1]);
+  eq(cells.length, 11);
+  cells.forEach(c => {
+    assert(/^(conflict|pending|agree|solo|none)\|(verified|reported|disputed)$/.test(c), c);
+  });
+});
+ok('默认态不高亮任何格子，也不高亮任何行', () => {
+  eq((jh.match(/cj-btn on/g) || []).length, 0);
+  eq((jh.match(/cj-row-on/g) || []).length, 0);
+});
+ok('选中格子与所属行同时高亮，且只有一个格子被选中', () => {
+  const h = X.confJointHtml(j48, 'conflict', 'disputed');
+  eq((h.match(/cj-btn on/g) || []).length, 1);
+  eq((h.match(/cj-row-on/g) || []).length, 1);
+  assert(/cj-btn on"[^>]*data-jcc="conflict\|disputed"/.test(h));
+});
+ok('未分级的条目在标题里如实说明，不塞进任何格子', () => {
+  const h = X.confJointHtml(X.confJoint([{ id: 'x', confidence: 'rumor' }]), 'all', 'all');
+  assert(h.includes('另有 1 条可信度未分级'), h.slice(0, 200));
+});
+ok('空矩阵也能渲染出完整骨架且不出现 NaN', () => {
+  const h = X.confJointHtml(null, 'all', 'all');
+  assert(h.includes('<table class="cj-table"'));
+  assert(!/NaN|undefined/.test(h));
+  eq((h.match(/class="cj-btn/g) || []).length, 0);
+});
+ok('矩阵 HTML 不引入脚本注入面', () => {
+  const h = X.confJointHtml(j48, '<img src=x>', '" onload="alert(1)');
+  assert(!h.includes('<img'), 'cc 值被拼进 HTML');
+  assert(!/onload="alert/.test(h), 'conf 值被拼进属性');
+  assert(!/<script/.test(h));
+});
+ok('窄屏短标签：每档都有 ≤2 字的 short，且长短两套都渲染', () => {
+  C.CONF_META.forEach(m => {
+    assert(m.short && [...m.short].length <= 2, m.key + ' 缺短标签');
+  });
+  /* 3 个列标签 + 1 个左上角 = 各 4 处 */
+  eq((jh.match(/class="cj-hl"/g) || []).length, 4);
+  eq((jh.match(/class="cj-hs"/g) || []).length, 4);
+  assert(jh.includes('多源核实') && jh.includes('核实'), '长短标签应同时存在');
+});
+ok('角标也给了窄屏替身，避免表头挤成竖排单字', () => {
+  assert(/class="cj-corner"><span class="cj-hl">交叉校验 ↓ \/ 可信度 →<\/span><span class="cj-hs">/.test(jh));
+});
+
 console.log(`\n可信度分布单测：${pass} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);

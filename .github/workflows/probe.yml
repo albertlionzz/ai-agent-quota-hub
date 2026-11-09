@@ -13,6 +13,8 @@ on:
       - 'quota-hub/smoke/**'    # 窄屏 / 冒烟 harness 改了也要重新验证
       - 'quota-hub/build.py'    # 构建顺序变了，产物必须重建一次
       - 'quota-hub/assets/**'   # 任一视图 / 样式 / 数据变化都可能撑破 320px
+      - 'quota-hub/test-*.js'   # 测试本身改了也要验证一遍
+      - 'quota-hub/test-*.py'
       - 'quota-hub/check-confidence.js'
 
 permissions:
@@ -48,6 +50,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      # 单测门禁：18 个 Node 套件 + 2 个 Python 套件。此前 CI 只校验数据一致性，
+      # 逻辑回归得靠人本地跑；接进来后「改了 A 弄坏 B」在这一步就红，不用等上线。
+      - name: 单元测试门禁
+        run: |
+          set -o pipefail
+          cd quota-hub
+          for f in test-*.js; do
+            echo "── $f"
+            if ! node "$f" | tail -2; then echo "::error::单测失败 $f"; exit 1; fi
+          done
+          for f in test-*.py; do
+            echo "── $f"
+            if ! python "$f" | tail -2; then echo "::error::单测失败 $f"; exit 1; fi
+          done
 
       # 没配 secret 的变量会是空字符串，脚本按「无 key」处理，探到 401 记为「需鉴权」而非失败。
       # 所以零 secret 也能跑，验的是路对不对，不是钱够不够。
@@ -105,6 +122,19 @@ jobs:
           fi
           echo "使用浏览器：$BIN"
           BROWSER_BIN="$BIN" node quota-hub/smoke/narrow.js
+
+      # 冒烟是真门禁：它跑的是用户点得到的路径（点按钮、敲键盘、派发事件），
+      # 不调用内部函数。和窄屏回归分两步是为了失败时一眼看出是「功能坏了」
+      # 还是「窄屏溢出」。浏览器缺席时只告警，不让环境问题污染结论。
+      - name: 浏览器冒烟门禁
+        run: |
+          BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$BIN" ]; then
+            echo "::warning::runner 未预装 Chromium 内核浏览器，跳过浏览器冒烟"
+            exit 0
+          fi
+          echo "使用浏览器：$BIN"
+          BROWSER_BIN="$BIN" node quota-hub/smoke/run.js
 
       - name: 提交结果
         env:
