@@ -13,7 +13,8 @@ new Function('box', read('usage.js') + '\n' + read('walletio.js') + `
 const { walletPayload, walletFileName, parseWalletBackup, applyWalletBackup, describeBackup } = box;
 
 const KNOWN = new Set(['zhipu', 'volc', 'gemini', 'groq', 'openrouter']);
-const NOW = new Date('2026-10-22T10:00:00+08:00');
+/* 同上：用本地时间构造，避免在 UTC runner 上落到前一天 */
+const NOW = new Date(2026, 9, 22, 10, 0, 0, 0);
 
 let pass = 0, fail = 0;
 function ok(name, fn) {

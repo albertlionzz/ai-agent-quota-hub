@@ -168,7 +168,12 @@ node smoke/narrow.js     # 真实窄屏 44 项：320/360/518/768 × 收起/展�
 
 `smoke/run.js` 用无头 Chromium 把产物真正跑起来，只做 DOM 交互（点按钮、敲键盘、派发事件），不调用内部函数——所以它测的是用户实际会遇到的东西。它也会跑「脏 localStorage」和 `__proto__` 污染两种异常数据，确认页面照常渲染。三个 smoke 脚本共用 `smoke/browser.js` 解析浏览器路径：`BROWSER_BIN` / `EDGE` / `CHROME_BIN` 可覆盖，否则按平台探测安装路径与 PATH；Linux 自动补 `--no-sandbox`。所以本地 Windows 用 Edge、GitHub Actions 的 ubuntu runner 用预装 Chrome，同一份 harness 两边都能跑。
 
-有个容易信以为真的坑：**headless Edge 有最小视口宽度**（本机约 518px），`--window-size=360` 实际按 518 渲染——`run.js` 的 mobile 场景测不到真窄屏。`smoke/narrow.js` 把产物塞进指定宽度的 iframe，读 iframe 内 `documentElement.scrollWidth`，覆盖 320 / 360 / 518 / 768 四档，每档同时测说明块**收起与展开**两态（只测收起会漏掉展开后长英文串撑宽）。这套 harness 顺带逼出两个真实布局修复：`.platform-grid` 的 `minmax(310px,1fr)` 在 320px 撑出 16px 横向滚动，以及说明块分组里的长平台名不换行。两处都改成 `min(...,100%)` + `overflow-wrap:anywhere`。
+有个容易信以为真的坑：**headless Edge 有最小视口宽度**（本机约 518px），`--window-size=360` 实际按 518 渲染——`run.js` 的 mobile 场景测不到真窄屏。`smoke/narrow.js` 把产物塞进指定宽度的 iframe，读 iframe 内 `documentElement.scrollWidth`，覆盖 320 / 360 / 518 / 768 四档，每档同时测说明块**收起与展开**两态（只测收起会漏掉展开后长英文串撑宽），外加一份「联合分布矩阵」的独立量测。这套 harness 顺带逼出三个真实布局修复：`.platform-grid` 的 `minmax(310px,1fr)` 在 320px 撑出 16px 横向滚动；说明块分组里的长平台名不换行；联合矩阵四字列标签在 360px 被挤成竖排单字（改成 ≤520px 换两字短标签 + 隐藏圆点）。
+
+**两个只有接进 CI 才会暴露的问题**（现在都有守卫）：
+
+1. `test-access.js` / `test-export.js` 把 Python 解释器绝对路径写死成本机 `C:/Users/.../python.exe`。本地永远绿，runner 上必挂。现在统一走 `quota-hub/pybin.js`：`PYTHON_BIN` → 本机 venv → `python3` / `python`，并且**真跑一次 `import` 才算数**（要 YAML 的场景还要求 `import yaml`）。`test-pybin.js` 留了一条扫描守卫：任何 `test-*.js` 里再出现 `C:/Users/...python` 就红。
+2. `test-schedule` / `test-usage` / `test-walletio` 用 `new Date('2026-10-22T22:30:00+08:00')` 造夹具，但「每日重置」本身就是**本地时区**语义（`todayKey` 走 `getFullYear/getMonth/getDate`，倒计时走 `setHours(24,0,0,0)`）。CI runner 是 UTC，写死 `+08:00` 会让倒计时和日期键一起偏。改成 `new Date(2026, 9, 22, 22, 30)` 本地构造后，在 UTC / +08:00 / −05:00 三个时区都通过——**别用「在 CI 里钉死 TZ」来绕过，那只是把 bug 藏起来**。
 
 `test-verify.js` 里最有用的一条断言：核验表里的 `base_url` 必须与端点表 `PIPE_BASE` 完全一致 —— 防止只改一处。
 

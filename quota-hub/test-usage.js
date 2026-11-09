@@ -34,7 +34,8 @@ ok('fmtTok 小数字原样', () => eq(fmtTok(3000), '3000'));
 ok('fmtTok 亿', () => eq(fmtTok(1e8), '1亿'));
 
 /* ---------- usageOf ---------- */
-const NOW = new Date('2026-10-22T10:00:00+08:00');
+/* 本地时间构造：日期键走 getFullYear/getMonth/getDate，别让 CI 的时区把日期推偏 */
+const NOW = new Date(2026, 9, 22, 10, 0, 0, 0);
 
 ok('礼包：扣减后给余量', () => {
   const p = { quotaType: 'gift', tokensTotal: 1000000 };

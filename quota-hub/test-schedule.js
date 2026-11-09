@@ -9,7 +9,9 @@ new Function('box', read('usage.js') + '\n' + read('schedule.js') + `
   ;Object.assign(box, { scheduleOf, scheduleAdvice, msToMidnight });`)(box);
 const { scheduleOf, scheduleAdvice, msToMidnight } = box;
 
-const NOW = new Date('2026-10-22T22:30:00+08:00');   /* 距 0 点还有 1.5 小时 */
+/* 用本地时间构造，别写死 +08:00：这套测试验的就是「本地 0 点重置」，
+   写死时区会让它在 CI（UTC）上恒错——第一次接进 CI 就踩到了。 */
+const NOW = new Date(2026, 9, 22, 22, 30, 0, 0);   /* 本地 2026-10-22 22:30，距 0 点 1.5 小时 */
 
 const P = [
   { id: 'a', name: 'A 每日', quotaType: 'forever', reset: 'daily', freeTokensPerDay: 1000 },
@@ -110,7 +112,7 @@ ok('倒计时算到本地 0 点', () => {
   assert.strictEqual(S.renew.items[0].minsLeft, 30);
 });
 ok('正好 0 点时倒计时为 0 而不是负数', () => {
-  const t = new Date('2026-10-22T00:00:00+08:00');
+  const t = new Date(2026, 9, 22, 0, 0, 0, 0);   /* 本地正好 0 点 */
   assert.ok(msToMidnight(t) >= 0);
   assert.strictEqual(Math.round(msToMidnight(t) / 3600000), 24);
 });
