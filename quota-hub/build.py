@@ -17,6 +17,7 @@ orch = (ASSETS / "orchestrator.js").read_text(encoding="utf-8")
 access = (ASSETS / "access.js").read_text(encoding="utf-8")
 verify = (ASSETS / "verify.js").read_text(encoding="utf-8")
 crosscheck = (ASSETS / "crosscheck.js").read_text(encoding="utf-8")
+confidence = (ASSETS / "confidence.js").read_text(encoding="utf-8")
 usage = (ASSETS / "usage.js").read_text(encoding="utf-8")
 cooldown = (ASSETS / "cooldown.js").read_text(encoding="utf-8")
 palette = (ASSETS / "palette.js").read_text(encoding="utf-8")
@@ -64,7 +65,8 @@ else:
 # 顺序有讲究：orchestrator 依赖 pipeline 的 dailyCapacity/pipeScriptable；
 # access 依赖 pipeline 的 PIPE_BASE 端点表，两者都必须排在 pipeline 之后；
 # verify 依赖 pipeline 的 downloadFile/copyText，同样必须排在 pipeline 之后。
-# usage / cooldown 都是无依赖纯函数，放最前面，方便 renderWallet 与测试共同使用。
+# usage / cooldown 是无依赖纯函数，放最前面，方便 renderWallet 与测试共同使用。
+# confidence 同样无依赖，但只服务平台库，紧挨 crosscheck 注入，便于对照两套筛选口径。
 for ph, payload in [
     ("/*__USAGE__*/", usage),
     ("/*__COOLDOWN__*/", cooldown),
@@ -80,6 +82,7 @@ for ph, payload in [
     ("/*__VERIFY__*/", verify),
     ("/*__CCSOURCES__*/", cc_sources),
     ("/*__CROSSCHECK__*/", crosscheck),
+    ("/*__CONF__*/", confidence),
     ("/*__PALETTE__*/", palette),
 ]:
     if app.count(ph) != 1:

@@ -26,10 +26,19 @@ ok('平台库 48 家，confidence 取值合法', () => {
   const allowed = new Set(['verified', 'reported', 'disputed']);
   platforms.forEach(p => assert(allowed.has(p.confidence), p.id + ' -> ' + p.confidence));
 });
-ok('23 家比对 / 22 家可映射 / 唯一未映射是 llama', () => {
-  eq(rows.length, 23);
-  eq(rows.filter(r => r.mapped).length, 22);
+ok('25 家比对 / 24 家可映射 / 唯一未映射是 llama', () => {
+  eq(rows.length, 25);
+  eq(rows.filter(r => r.mapped).length, 24);
   eq(rows.filter(r => !r.mapped).map(r => r.id).join(','), 'llama');
+});
+ok('补录的两家已纳入门禁且无漂移（solo 不约束 confidence）', () => {
+  ['modelscope', 'amd-radeon'].forEach(id => {
+    const r = rows.find(x => x.id === id);
+    assert(r, id + ' 不在门禁映射表');
+    eq(r.mapped, true);
+    eq(r.verdict, 'solo');
+    eq(r.drift, false);
+  });
 });
 ok('真实数据当前零漂移（moonshot 已由 verified 改 disputed）', () => {
   const drifts = rows.filter(r => r.drift);
@@ -83,10 +92,10 @@ ok('映射不上的厂商不算漂移', () => {
 ok('report 结构合法且漂移摘要字段齐全', () => {
   const rep = C.report(rows);
   eq(rep.schema, 1);
-  eq(rep.total, 23);
-  eq(rep.mapped, 22);
+  eq(rep.total, 25);
+  eq(rep.mapped, 24);
   eq(rep.unmapped.join(','), 'llama');
-  eq(rep.rows.length, 23);
+  eq(rep.rows.length, 25);
   assert(Array.isArray(rep.drifts));
 });
 ok('report 能汇总人为注入的漂移', () => {
@@ -111,7 +120,7 @@ ok('main(--out) 写出可解析的映射表', () => {
     silent(() => C.main(['--out', p]));
     const d = JSON.parse(fs.readFileSync(p, 'utf8'));
     eq(d.schema, 1);
-    eq(d.total, 23);
+    eq(d.total, 25);
     eq(d.driftCount, 0);
   } finally { if (fs.existsSync(p)) fs.unlinkSync(p); }
 });

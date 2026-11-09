@@ -27,7 +27,7 @@
   const state = {
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
-    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all' }, ui.filters || {}),
+    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }, ui.filters || {}),
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -279,7 +279,9 @@
   /* ============================================================
      视图：平台库
      ============================================================ */
-  function filteredPlatforms() {
+  /* 除「可信度」外的所有条件。分布条用这个集合做 facet 统计：
+     点选某一档后，条上仍能看见其它两档的占比，而不是只剩一整条。 */
+  function basePlatforms() {
     const q = state.search.trim().toLowerCase();
     return PLATFORMS.filter(p => {
       if (state.filters.region !== 'all' && p.region !== state.filters.region) return false;
@@ -294,6 +296,12 @@
                   ].join(' ').toLowerCase();
       return hay.includes(q);
     }).sort((a, b) => QUOTA_TYPES[b.quotaType].weight - QUOTA_TYPES[a.quotaType].weight);
+  }
+
+  function filteredPlatforms() {
+    const base = basePlatforms();
+    if (typeof confFilterMatch !== 'function') return base;
+    return base.filter(p => confFilterMatch(p, state.filters.conf));
   }
 
   const CAT_LABEL = { api: 'API', coding: '编程', agent: 'Agent 平台', chat: '对话', research: '研究', image: '图像', video: '视频' };
@@ -336,6 +344,20 @@
 
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
+
+    /* 可信度分布条：统计用 basePlatforms()（排除 conf 自身），
+       所以点选某一档后仍看得到完整分布；每次重绘按 state 重刷高亮。 */
+    const confBox = $('#conf-dist');
+    if (confBox && typeof confBreakdown === 'function' && typeof confBarHtml === 'function') {
+      confBox.innerHTML = confBarHtml(confBreakdown(basePlatforms()), state.filters.conf);
+      confBox.querySelectorAll('[data-conf]').forEach(b => {
+        b.addEventListener('click', () => {
+          state.filters.conf = b.dataset.conf;
+          saveUI();
+          renderRegistry();
+        });
+      });
+    }
 
     /* 交叉校验只覆盖「接入总表」这一根轴；网页版 / 编程工具 / 礼包类条目
        不在「官方免费 API」轴上，不给它们硬套标记，也不假装覆盖 48 家。 */
@@ -395,7 +417,7 @@
         p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
         typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
-      return `<div class="pcard" data-id="${p.id}">
+      return `<div class="pcard" data-id="${p.id}" data-conf="${esc(p.confidence)}">
         <div class="pcard-top">
           <div style="min-width:0">
             <div class="pcard-name">${esc(p.name)}</div>
@@ -1047,6 +1069,8 @@
   /*__CCSOURCES__*/
 
   /*__CROSSCHECK__*/
+
+  /*__CONF__*/
 
   /*__PALETTE__*/
 

@@ -1,15 +1,16 @@
-/* 冒烟测试执行器：把 harness 注入产物 → Edge 无头跑 → --dump-dom 抓结果。
+/* 冒烟测试执行器：把 harness 注入产物 → 无头浏览器跑 → --dump-dom 抓结果。
    用法：node run.js
-   环境变量：EDGE 浏览器路径可覆盖 */
+   浏览器由 ./browser.js 跨平台解析；可用 BROWSER_BIN / EDGE / CHROME_BIN 覆盖 */
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { resolveBrowser, headlessArgs, fileUrl } = require('./browser');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const ART = path.join(ROOT, 'AI-Agent免费额度调度中台.html');
 const HARNESS = fs.readFileSync(path.join(__dirname, 'harness.js'), 'utf8');
-const EDGE = process.env.EDGE || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const BROWSER = resolveBrowser();
 
 const html = fs.readFileSync(ART, 'utf8');
 
@@ -31,14 +32,12 @@ function build(seedCode) {
 function run(name, seedCode, width, height) {
   const file = path.join(os.tmpdir(), 'qh-smoke-' + name + '.html');
   fs.writeFileSync(file, build(seedCode), 'utf8');
-  const out = execFileSync(EDGE, [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-    '--allow-file-access-from-files', '--hide-scrollbars',
+  const out = execFileSync(BROWSER, headlessArgs().concat([
     '--window-size=' + width + ',' + height,
     '--virtual-time-budget=12000',
     '--dump-dom',
-    'file:///' + file.replace(/\\/g, '/'),
-  ], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 120000, stdio: ['ignore', 'pipe', 'ignore'] });
+    fileUrl(file),
+  ]), { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 120000, stdio: ['ignore', 'pipe', 'ignore'] });
 
   /* 注入的脚本源码里也含这个标签文本，必须锚定 JSON 开头才是真实结果 */
   const all = [...out.matchAll(/<pre id="__smoke__"[^>]*>\s*(\{"url"[\s\S]*?)<\/pre>/g)];

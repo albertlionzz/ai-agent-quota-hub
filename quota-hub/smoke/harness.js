@@ -183,9 +183,9 @@
     var nAgree = pick('agree');
     add('筛「一致」= 9 家', nAgree === 9, nAgree);
     var nSolo = pick('solo');
-    add('筛「单源」= 8 家', nSolo === 8, nSolo);
+    add('筛「单源」= 10 家', nSolo === 10, nSolo);
     var nNone = pick('none');
-    add('筛「未覆盖」= 26 家', nNone === 26, nNone);
+    add('筛「未覆盖」= 24 家', nNone === 24, nNone);
     add('五档加总 = 48（互斥且无遗漏）',
       nConflict + nPending + nAgree + nSolo + nNone === 48,
       [nConflict, nPending, nAgree, nSolo, nNone].join('+'));
@@ -195,7 +195,7 @@
     var nAll = pick('all');
     add('复位「全部」恢复 48', nAll === 48, nAll);
 
-    /* ---------- 未覆盖 26 家的说明 ---------- */
+    /* ---------- 未覆盖 24 家的说明 ---------- */
     var why = q('#cc-why');
     add('说明块已渲染且默认收起', !!why && !why.open && txt(why).length > 0);
     var whyBtn = q('#cc-cover-why');
@@ -203,9 +203,11 @@
     add('「为什么？」能展开说明', !!why && why.open, why ? String(why.open) : 'missing');
     var whyTxt = txt(why);
     var groups = qa('#cc-why .cc-why-group');
-    add('说明按形态分组（≥5 组）', groups.length >= 5, groups.length);
-    add('说明写清 22 / 48 / 26 三个数字',
-      /22/.test(whyTxt) && /48/.test(whyTxt) && /26/.test(whyTxt));
+    add('说明按形态分成 6 组（补录两家后「聚合中转站」组已清空）', groups.length === 6, groups.length);
+    add('说明写清 25 / 24 / 48 三个数字',
+      /25/.test(whyTxt) && /24/.test(whyTxt) && /48/.test(whyTxt));
+    add('补录的两家不再出现在未覆盖名单里',
+      !/魔搭 ModelScope|AMD Radeon Cloud/.test(whyTxt));
     add('说明明说「不是漏数据，是轴的边界」', /轴的边界/.test(whyTxt));
     add('分组里列出真实平台名', /Trae|通义灵码|Dify|可灵/.test(whyTxt),
       whyTxt.replace(/\s+/g, ' ').slice(0, 60));
@@ -424,7 +426,7 @@
   function s21() {
     var view = navTo('crosscheck');
     var rows = qa('#view-crosscheck .cc-table tbody tr', view);
-    add('交叉校验表渲染 23 行', rows.length === 23, rows.length);
+    add('交叉校验表渲染 25 行', rows.length === 25, rows.length);
     /* 回归：cell() 曾返回裸 <div>，被浏览器踢出表格，每行只剩 3 个 td。
        只看行数查不出来，必须逐行核列数。 */
     var badCols = rows.filter(function (r) { return qa('td', r).length !== 6; }).length;
@@ -510,9 +512,9 @@
     var view = navTo('registry');
     var badges = qa('#platform-grid .cc-badge', view);
     add('平台库出现交叉校验角标', badges.length > 0, badges.length);
-    add('角标 = 22 个（23 家减 Meta Llama）', badges.length === 22, badges.length);
+    add('角标 = 24 个（25 家减 Meta Llama）', badges.length === 24, badges.length);
     var cover = q('#cc-cover');
-    add('覆盖统计条写明 22 / 48', !!cover && /22/.test(txt(cover)) && /48/.test(txt(cover)),
+    add('覆盖统计条写明 24 / 48', !!cover && /24/.test(txt(cover)) && /48/.test(txt(cover)),
       cover ? txt(cover).replace(/\s+/g, ' ').slice(0, 50) : 'missing');
     add('覆盖统计标出 2 处冲突', !!cover && /2 处冲突/.test(txt(cover)));
     var cBadges = qa('#platform-grid .cc-badge-conflict', view);
@@ -528,7 +530,65 @@
     if (allBtn && allBtn.classList.contains('on') === false) allBtn.click();
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s22, s23, s16, s17];
+  /* ---------- 24. 数据可信度分布条：堆叠条 / 筛选 / facet / 联动 ---------- */
+  function s24() {
+    var view = navTo('registry');
+    /* 前面若干步骤动过筛选，先把四组筛选复位，别让遗留状态污染计数 */
+    ['region', 'cat', 'qtype', 'cc'].forEach(function (g) {
+      var b = q('#filter-bar .fbtn[data-g="' + g + '"][data-v="all"]', view);
+      if (b) b.click();
+    });
+    var box = q('#conf-dist', view);
+    add('可信度分布条已渲染', !!box && txt(box).length > 40, txt(box).slice(0, 40));
+    if (!box) return;
+    var segs = qa('#conf-dist .cd-seg', view);
+    var keys = qa('#conf-dist .cd-key', view);
+    add('堆叠条 3 段 / 图例 4 键（含清除）', segs.length === 3 && keys.length === 4,
+      segs.length + '/' + keys.length);
+    var counts = segs.map(function (b) { return num(txt(b)); });
+    add('三段数字 15 / 21 / 12，加总 48',
+      counts.join(',') === '15,21,12' && counts.reduce(function (a, b) { return a + b; }, 0) === 48,
+      counts.join(','));
+    add('默认不高亮任何档位，只高亮「清除筛选」',
+      qa('#conf-dist .cd-seg.on', view).length === 0 && !!q('#conf-dist .cd-clear.on', view));
+
+    var reported = q('#conf-dist .cd-key[data-conf="reported"]', view);
+    if (reported) reported.click();
+    add('点「单源报道」筛出 21 家', num(txt(q('#result-count'))) === 21, txt(q('#result-count')));
+    var cards = qa('#platform-grid .pcard', view);
+    add('筛出的卡片 data-conf 全为 reported',
+      cards.length === 21 && cards.every(function (c) { return c.getAttribute('data-conf') === 'reported'; }),
+      cards.length);
+    var segs2 = qa('#conf-dist .cd-seg', view);
+    add('facet：点选后分布仍按 48 条全貌统计',
+      /条件的\s*48\s*条/.test(txt(q('#conf-dist .cd-head', view))) &&
+      segs2.map(function (b) { return num(txt(b)); }).join(',') === '15,21,12',
+      txt(q('#conf-dist .cd-head', view)));
+    add('选中档在段与图例上各高亮一次',
+      qa('#conf-dist .cd-seg.on', view).length === 1 &&
+      !!q('#conf-dist .cd-key.on[data-conf="reported"]', view));
+    var ui = null;
+    try { ui = JSON.parse(localStorage.getItem('quotaHub.ui.v1')); } catch (e) {}
+    add('可信度筛选随 UI 偏好持久化', !!ui && ui.filters && ui.filters.conf === 'reported',
+      ui && ui.filters ? ui.filters.conf : 'none');
+
+    /* 与其它筛选联动：交叉校验「冲突」两家应全部落在「口径冲突」档 */
+    var ccBtn = q('#filter-bar .fbtn[data-g="cc"][data-v="conflict"]', view);
+    if (ccBtn) ccBtn.click();
+    add('与交叉校验联动：冲突 2 家时分布收敛为 2 条',
+      /条件的\s*2\s*条/.test(txt(q('#conf-dist .cd-head', view))),
+      txt(q('#conf-dist .cd-head', view)));
+    var clr = q('#conf-dist .cd-clear', view);
+    if (clr) clr.click();
+    add('两家冲突平台全为「口径冲突」档',
+      num(txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view))) === 2,
+      txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view)));
+    var ccAll = q('#filter-bar .fbtn[data-g="cc"][data-v="all"]', view);
+    if (ccAll) ccAll.click();
+    add('复位后回到 48 个结果', num(txt(q('#result-count'))) === 48, txt(q('#result-count')));
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s22, s23, s24, s16, s17];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();

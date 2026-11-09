@@ -174,6 +174,23 @@ const CROSSCHECK = [
     ft:    { kind: 'trial', verified: true, claim: '一次性 $5 试用金 / 30 天，需有效支付方式' },
     intel: { free: true, claim: '$5 赠金 / 30 天需绑卡' },
     relay: null
+  },
+  /* 2026-11-10 补录：这两家在平台库里是 daily/api、端点表也有 base_url，
+     却没进接入总表，被 ccVerdictOf 判成「未覆盖」——那是轴的漏项，不是
+     形态不同。FreeToken / free-llm-intel 都没收录它们，所以判定是「仅本项目覆盖」。 */
+  {
+    id: 'modelscope', name: '魔搭 ModelScope',
+    hub:   { v: 'yes', note: 'API-Inference 开源模型每日免费调用；2000 次/日 与 250 魔粒/日 两套口径冲突' },
+    ft:    null,
+    intel: null,
+    relay: null
+  },
+  {
+    id: 'amd-radeon', name: 'AMD Radeon Cloud Token Factory',
+    hub:   { v: 'yes', note: '官方列 4 款 Public Free 模型、按 points 每日重置；二手来源称含旗舰，官方不支持' },
+    ft:    null,
+    intel: null,
+    relay: null
   }
 ];
 
@@ -373,9 +390,10 @@ function ccBadgeFor(id) {
 /* ============================================================
    平台库筛选与「未覆盖」说明
    ------------------------------------------------------------
-   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表只收
-   能拿 API key 直连的 23 家。平台库另外 26 家是网页版 / IDE
-   工具 / 自托管 / 图像视频 / 聚合站 —— 不是漏数据，是轴的边界。
+   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表收
+   能拿 API key 直连的 25 家（2026-11-10 补入 modelscope / amd-radeon）。
+   平台库另外 24 家是网页版 / IDE 工具 / 自托管 / 图像视频 /
+   一次性礼包 —— 不是漏数据，是轴的边界。
    下面几个纯函数让筛选和说明都从数据推导，不手写名单。
    ============================================================ */
 

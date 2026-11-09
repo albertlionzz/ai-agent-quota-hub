@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "generatedFrom": "assets/verify.js#VENDOR_ACCESS",
-  "sourceHash": "40c1eca520abe0b7",
-  "count": 22,
+  "sourceHash": "f604f42634ac37f1",
+  "count": 24,
   "skipped": [
     {
       "id": "llama",
@@ -292,6 +292,32 @@
       "region": "global",
       "env": "CEREBRAS_API_KEY",
       "base": "https://api.cerebras.ai/v1",
+      "probeBase": null,
+      "probePath": null,
+      "probe": "models",
+      "path": "/models",
+      "model": null
+    },
+    {
+      "id": "modelscope",
+      "name": "魔搭 ModelScope",
+      "vendor": "阿里巴巴 · 魔搭社区",
+      "region": "cn",
+      "env": "MODELSCOPE_API_KEY",
+      "base": "https://api-inference.modelscope.cn/v1",
+      "probeBase": null,
+      "probePath": null,
+      "probe": "models",
+      "path": "/models",
+      "model": null
+    },
+    {
+      "id": "amd-radeon",
+      "name": "AMD Radeon Cloud Token Factory",
+      "vendor": "AMD",
+      "region": "cn",
+      "env": "AMD_RADEON_API_KEY",
+      "base": "https://developer.amd.com.cn/radeon/api/v1",
       "probeBase": null,
       "probePath": null,
       "probe": "models",

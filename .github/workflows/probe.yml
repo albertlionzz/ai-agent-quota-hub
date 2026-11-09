@@ -10,8 +10,9 @@ on:
     paths:
       - '.github/workflows/probe.yml'
       - 'quota-hub/probe/**'    # 端点表或探活脚本改了，立刻跑一次验证
-      - 'quota-hub/assets/data.js'
-      - 'quota-hub/assets/crosscheck.js'
+      - 'quota-hub/smoke/**'    # 窄屏 / 冒烟 harness 改了也要重新验证
+      - 'quota-hub/build.py'    # 构建顺序变了，产物必须重建一次
+      - 'quota-hub/assets/**'   # 任一视图 / 样式 / 数据变化都可能撑破 320px
       - 'quota-hub/check-confidence.js'
 
 permissions:
@@ -74,6 +75,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          AMD_RADEON_API_KEY: ${{ secrets.AMD_RADEON_API_KEY }}
         run: python quota-hub/probe/probe.py --out probe.json --timeout 12 --workers 6
 
       # 同一趟 CI 顺手复核「交叉校验」引用的三个外部来源时间戳。
@@ -89,6 +92,19 @@ jobs:
         run: |
           python quota-hub/build.py
           python -c "import json,pathlib; r=pathlib.Path('.'); h=list(r.glob('*.html')); assert len(h)==1, 'expected one root HTML'; s=json.loads((r/'crosscheck-sources.json').read_text(encoding='utf-8'))['fetchedAt']; assert s in h[0].read_text(encoding='utf-8'), 'source snapshot not inlined'; print('inline snapshot verified:', s)"
+
+      # 产物刚重建，正好拿它做真实窄屏回归。headless Chromium 有最小视口
+      # （--window-size=360 实际按 518 渲染），只有 iframe 能测到 320 / 360。
+      # runner 换镜像没预装浏览器时只告警跳过，不因环境问题让探活整条变红。
+      - name: 真实窄屏横向溢出回归
+        run: |
+          BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$BIN" ]; then
+            echo "::warning::runner 未预装 Chromium 内核浏览器，跳过真实窄屏回归"
+            exit 0
+          fi
+          echo "使用浏览器：$BIN"
+          BROWSER_BIN="$BIN" node quota-hub/smoke/narrow.js
 
       - name: 提交结果
         env:

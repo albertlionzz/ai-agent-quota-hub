@@ -15,7 +15,14 @@ function eq(a, b, msg) { assert.strictEqual(a, b, msg); }
 const VALID_HUB = ['yes', 'limited', 'no', 'disputed'];
 
 /* ---------- 结构 ---------- */
-ok('共 23 家厂商（接入总表全覆盖）', () => eq(CROSSCHECK.length, 23));
+ok('共 25 家厂商（接入总表全覆盖）', () => eq(CROSSCHECK.length, 25));
+ok('2026-11-10 补录的两家 daily/api 已进交叉校验', () => {
+  ['modelscope', 'amd-radeon'].forEach(id => {
+    const c = CROSSCHECK.find(x => x.id === id);
+    assert(c, id + ' 不在 CROSSCHECK');
+    eq(ccVerdict(c).key, 'solo', id + ' 应判「仅本项目覆盖」');
+  });
+});
 ok('id 唯一', () => {
   const ids = CROSSCHECK.map(c => c.id);
   eq(new Set(ids).size, ids.length);
@@ -68,12 +75,14 @@ ok('Anthropic：仅本项目有数据 → solo', () => eq(ccVerdict(CROSSCHECK.f
 ok('OpenAI：外部亦无定论 → 待核(unknown)', () => eq(ccVerdict(CROSSCHECK.find(c => c.id === 'openai')).key, 'unknown'));
 
 /* ---------- 汇总分布合理 ---------- */
-ok('汇总分布加总为 23', () => {
+ok('汇总分布加总为 25', () => {
   const cnt = { agree: 0, conflict: 0, gap: 0, solo: 0, unknown: 0 };
   CROSSCHECK.forEach(c => cnt[ccVerdict(c).key]++);
   const sum = cnt.agree + cnt.conflict + cnt.gap + cnt.solo + cnt.unknown;
-  eq(sum, 23);
+  eq(sum, 25);
   eq(cnt.conflict, 2, '冲突应为 2（DeepSeek / Kimi）');
+  /* CROSSCHECK 里 solo 11 家，其中 llama 不在平台库，所以平台库筛出来是 10 家 */
+  eq(cnt.solo, 11, '补录两家后接入总表单源应为 11（含 llama）');
 });
 
 /* ---------- 渲染函数存在（DOM 调用在浏览器内） ---------- */
@@ -181,8 +190,8 @@ new Function('exports', fs.readFileSync(path.join(__dirname, 'assets', 'data.js'
   '\n;Object.assign(exports,{PLATFORMS});')(dctx);
 const pids = new Set(dctx.PLATFORMS.map(p => p.id));
 ok('平台库共 48 家', () => eq(dctx.PLATFORMS.length, 48));
-ok('23 家交叉校验中 22 家能映射到平台库', () =>
-  eq(CROSSCHECK.filter(c => pids.has(c.id)).length, 22));
+ok('25 家交叉校验中 24 家能映射到平台库', () =>
+  eq(CROSSCHECK.filter(c => pids.has(c.id)).length, 24));
 ok('唯一映射不上的只有 llama（Meta 无官方 API）', () =>
   eq(CROSSCHECK.filter(c => !pids.has(c.id)).map(c => c.id).join(','), 'llama'));
 ok('两处冲突在平台库里都有对应卡片', () =>
@@ -207,7 +216,7 @@ ok('ccVerdictOf 对未进接入总表的条目返回 none', () => {
   eq(ccx.ccVerdictOf(unc.groups[0].items[0].id), 'none');
   eq(ccx.ccVerdictOf('不存在的平台'), 'none');
 });
-ok('llama 有定论但不在平台库（覆盖 22 而非 23 的原因）', () => {
+ok('llama 有定论但不在平台库（覆盖 24 而非 25 的原因）', () => {
   assert(ccx.ccVerdictOf('llama') !== 'none');
   assert(!pids.has('llama'));
 });
@@ -221,7 +230,7 @@ ok('ccFilterMatch：pending 合并 gap + unknown', () => {
   ['openai', 'xai', 'longcat'].forEach(id => eq(ccx.ccFilterMatch(id, 'pending'), true, id));
   eq(ccx.ccFilterMatch('deepseek', 'pending'), false);
 });
-ok('各档位数量 2 / 3 / 9 / 8 / 26，加总 48', () => {
+ok('各档位数量 2 / 3 / 9 / 10 / 24，加总 48', () => {
   const counts = {};
   ['conflict', 'pending', 'agree', 'solo', 'none'].forEach(f => {
     counts[f] = dctx.PLATFORMS.filter(p => ccx.ccFilterMatch(p.id, f)).length;
@@ -229,8 +238,8 @@ ok('各档位数量 2 / 3 / 9 / 8 / 26，加总 48', () => {
   eq(counts.conflict, 2);
   eq(counts.pending, 3);
   eq(counts.agree, 9);
-  eq(counts.solo, 8);
-  eq(counts.none, 26);
+  eq(counts.solo, 10);
+  eq(counts.none, 24);
   eq(Object.values(counts).reduce((a, b) => a + b, 0), 48);
 });
 ok('档位互斥：每个平台只落进一个档位', () => {
@@ -240,16 +249,18 @@ ok('档位互斥：每个平台只落进一个档位', () => {
     eq(hit.length, 1, p.id + ' 命中 ' + hit.join(','));
   });
 });
-ok('ccUncovered：22 覆盖 / 26 未覆盖 / 总 48', () => {
+ok('ccUncovered：24 覆盖 / 24 未覆盖 / 总 48', () => {
   eq(unc.total, 48);
-  eq(unc.covered, 22);
-  eq(unc.uncovered, 26);
+  eq(unc.covered, 24);
+  eq(unc.uncovered, 24);
   eq(unc.covered + unc.uncovered, unc.total);
 });
 ok('未覆盖分组完整、无重复、无遗漏', () => {
   const ids = unc.groups.flatMap(g => g.items.map(it => it.id));
-  eq(ids.length, 26);
-  eq(new Set(ids).size, 26);
+  eq(ids.length, 24);
+  eq(new Set(ids).size, 24);
+  ['modelscope', 'amd-radeon'].forEach(id =>
+    assert(!ids.includes(id), id + ' 已进接入总表，不该再算未覆盖'));
   const coveredIds = dctx.PLATFORMS.filter(p => ccx.ccVerdictOf(p.id) !== 'none').map(p => p.id);
   coveredIds.forEach(id => assert(!ids.includes(id), id + ' 被误归未覆盖'));
 });

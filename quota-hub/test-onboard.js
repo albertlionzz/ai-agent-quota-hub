@@ -113,7 +113,7 @@ ok('两种 shell 版本都不为空且各含自己的语法', () => {
   assert.ok(b.includes('curl') && b.includes('cat >'));
   assert.ok(p.includes('Invoke-WebRequest') && p.includes('Set-Content'));
 });
-ok('23 家厂商都能生成脚本（无异常、无 undefined）', () => {
+ok('25 家厂商都能生成脚本（无异常、无 undefined）', () => {
   VENDOR_ACCESS.forEach(v => {
     ['bash', 'ps'].forEach(sh => {
       const s = buildVendorEnvScript(v, 'k', sh);

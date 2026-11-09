@@ -8,10 +8,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { resolveBrowser, headlessArgs, fileUrl } = require('./browser');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const ART = path.join(ROOT, 'AI-Agent免费额度调度中台.html');
-const EDGE = process.env.EDGE || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const BROWSER = resolveBrowser();
 
 const view = process.argv[2] || 'overview';
 const out = process.argv[3] || path.join(os.tmpdir(), 'shot.png');
@@ -71,9 +72,8 @@ window.addEventListener('load', function () {
 const tmp = path.join(os.tmpdir(), 'qh-shot-' + view + '.html');
 fs.writeFileSync(tmp, html.replace('</body>', seed + '</body>'), 'utf8');
 try { fs.unlinkSync(out); } catch (e) {}
-execFileSync(EDGE, [
-  '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
+execFileSync(BROWSER, headlessArgs().concat([
   '--window-size=' + W + ',' + H, '--virtual-time-budget=5000',
-  '--screenshot=' + out, 'file:///' + tmp.replace(/\\/g, '/'),
-], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 90000 });
+  '--screenshot=' + out, fileUrl(tmp),
+]), { stdio: ['ignore', 'pipe', 'ignore'], timeout: 90000 });
 console.log(out + '  ' + fs.statSync(out).size + 'B');

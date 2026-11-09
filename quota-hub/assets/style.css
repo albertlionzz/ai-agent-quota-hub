@@ -650,6 +650,58 @@ tr.cc-focus { background: var(--blue-soft) !important; }
 .cc-why-names { font-size: 10.5px; line-height: 1.6; color: var(--ink-3); }
 .cc-why-body .cc-why-foot { margin-bottom: 0; font-size: 11.5px; color: var(--ink-3); }
 
+/* --- 平台库：数据可信度分布条 ---
+   段宽用百分比，容器 min-width:0 + 图例 flex-wrap 保证 320px 不横向溢出。 */
+.conf-dist {
+  min-width: 0; max-width: 100%; margin: 12px 0 2px; padding: 12px 14px 11px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r); box-shadow: var(--shadow);
+}
+.cd-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 9px; min-width: 0; }
+.cd-head > b { font-size: 12.5px; font-weight: 650; color: var(--ink); }
+.cd-head > span { font-size: 11px; color: var(--ink-3); overflow-wrap: anywhere; }
+.cd-head > span b { font-family: var(--mono); color: var(--ink-2); }
+.cd-bar {
+  display: flex; width: 100%; height: 24px; border-radius: 6px; overflow: hidden;
+  background: var(--bg-alt); border: 1px solid var(--line);
+}
+.cd-seg {
+  min-width: 0; padding: 0; border: 0; border-right: 1px solid rgba(255,255,255,.35);
+  color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 650;
+  cursor: pointer; overflow: hidden; white-space: nowrap; transition: opacity .15s;
+}
+.cd-seg:last-child { border-right: 0; }
+.cd-seg.cd-green { background: var(--green); }
+.cd-seg.cd-amber { background: var(--amber); }
+.cd-seg.cd-red   { background: var(--red); }
+.cd-seg:not(.on) { opacity: .78; }
+.cd-seg.on { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255,255,255,.85); }
+.cd-seg:hover { opacity: 1; }
+.cd-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; min-width: 0; }
+.cd-key {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--ink-2); font: 11px var(--sans);
+  cursor: pointer; overflow-wrap: anywhere;
+}
+.cd-key.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.cd-key:hover { border-color: var(--accent); }
+.cd-key b { font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 650; }
+.cd-key em { font-style: normal; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.cd-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.cd-dot.cd-green { background: var(--green); }
+.cd-dot.cd-amber { background: var(--amber); }
+.cd-dot.cd-red   { background: var(--red); }
+.cd-clear { margin-left: auto; }
+.cd-note { margin-top: 9px; font-size: 11px; line-height: 1.65; color: var(--ink-3); overflow-wrap: anywhere; }
+.cd-note b { color: var(--ink-2); font-weight: 650; }
+
+@media (max-width: 520px) {
+  .conf-dist { padding: 10px 11px; }
+  .cd-bar { height: 22px; }
+  .cd-clear { margin-left: 0; }
+}
+
 /* --- 接入核验卡片里的外部证据块 --- */
 .vcc {
   margin-top: 9px; padding: 10px 12px; border-radius: 7px;

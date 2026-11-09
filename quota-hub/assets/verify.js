@@ -470,6 +470,49 @@ const VENDOR_ACCESS = [
     conflict: '⚠ 日额度为社区口径，未在官方页找到明确数字。',
     pitfall: '模型选择少；吞吐高但长上下文支持弱于 Gemini。',
     note: '批量任务（几千条分类/抽取）优先试这里，速度快直接等于省时间。'
+  },
+
+  /* ============ 2026-11-10 补录：平台库里已是 daily/api，却漏在核验轴之外 ============
+     这两家此前只在 PLATFORMS / PIPE_BASE 里，没进 VENDOR_ACCESS，于是交叉校验
+     把它们误判成「未覆盖」。端点当日实测：modelscope /v1/models 返回 200，
+     amd-radeon /v1/models 返回 401（存在但需 key），都不是死链。 */
+  {
+    id: 'modelscope', name: '魔搭 ModelScope', vendor: '阿里巴巴 · 魔搭社区', region: 'cn', tier: 3,
+    console: 'https://modelscope.cn/my/myinfo',
+    base: 'https://api-inference.modelscope.cn/v1',
+    alt: [],
+    env: 'MODELSCOPE_API_KEY', keyPrefix: 'ms-',
+    models: ['Qwen/Qwen3-8B', 'deepseek-ai/DeepSeek-V4-Flash'],
+    retired: [],
+    probe: 'models',
+    free: 'yes',
+    freeText: 'API-Inference 对开源模型给每日免费调用：攻略口径「2000 次/日」，另有「250 魔粒/日 ≈ 125 次」的换算口径；热门模型额度会动态下调',
+    verifyDate: '2026-10-20',
+    src: 'https://modelscope.cn/docs',
+    srcName: '魔搭 ModelScope 官方文档（API-Inference 章节）',
+    conflict: '⚠ 免费额度两套口径差 16 倍：「2000 次/日」（2026-09 攻略）与「250 魔粒/日 ≈ 125 次」（按旗舰每次约 2 魔粒折算）。官方未公示统一数字，以控制台魔粒余额为准。',
+    pitfall: '⚠ 魔搭 SDK Token（ms- 开头）与阿里云百炼 DASHSCOPE_API_KEY 不是同一套账号，别混填。API-Inference 只覆盖开源模型，且按「魔粒」而非请求次数扣减；model id 要带命名空间前缀（如 Qwen/…）。',
+    note: '2026-11-10 补录进接入总表，端点实测 /v1/models 返回 200。拿 Kimi K3 / GLM-5.2 这类旗舰做小批量任务最省事的路子，但别把 2000 次当成产能规划。'
+  },
+  {
+    id: 'amd-radeon', name: 'AMD Radeon Cloud Token Factory', vendor: 'AMD', region: 'cn', tier: 3,
+    console: 'https://developer.amd.com.cn/radeon/tokenfactory',
+    base: 'https://developer.amd.com.cn/radeon/api/v1',
+    /* 官方称同时支持 OpenAI / Anthropic 两种协议，但 Anthropic 侧的 base_url
+       未在公开文档里写死，不编一个路径出来——按控制台给出的地址填。 */
+    alt: [],
+    env: 'AMD_RADEON_API_KEY', keyPrefix: '（中国站控制台生成）',
+    models: ['DeepSeek-V4-Flash-0731', 'Qwen3.8-Flash-Next', 'MiniCPM5-1B'],
+    retired: [],
+    probe: 'models',
+    free: 'yes',
+    freeText: '官方列 4 款 Public Free 模型，每日用量上限按 points 计、北京时间 00:00 重置；官方未公示具体额度数字，429 会带 Retry-After',
+    verifyDate: '2026-10-20',
+    src: 'https://developer.amd.com.cn/radeon/tokenfactory',
+    srcName: 'AMD Radeon Cloud Token Factory 官方文档（中国站）',
+    conflict: '⚠ 二手来源称「每日 $10 额度、含 Kimi K3 / GLM 5.2 旗舰」，官方 API 文档只列 4 款 Public Free 小模型（DeepSeek-V4-Flash 系 / Qwen3.8-Flash-Next / MiniCPM5-1B），且未公示额度数字。以官方为准。',
+    pitfall: '⚠ 免费的是 Flash / 小模型，不含旗舰；官方定位是免费试用，不是生产服务。中国站专属，海外 developer.amd.com 没有 Token Factory；RPM 与并发按 key 限制。',
+    note: '2026-11-10 补录进接入总表，端点实测 /v1/models 返回 401（存在，需 key）。OpenAI + Anthropic 双协议可直连 OpenCode，是国内少数不需要海外手机号的海外厂商入口。'
   }
 ];
 
@@ -781,7 +824,7 @@ const VERIFY_TIER = {
 };
 
 let VERIFY_FILTER = { tier: 'all', free: 'all', q: '' };
-/* 紧凑模式：23 家全展开约 1.7 万像素，读起来很累。开启后压缩留白、
+/* 紧凑模式：25 家全展开约 1.9 万像素，读起来很累。开启后压缩留白、
    把长段落截到 2 行，但「免费额度 / 易错点 / 口径冲突」三块始终保留可见
    —— 这几块正是判断会不会接错的关键，不能藏。 */
 let VERIFY_COMPACT = false;

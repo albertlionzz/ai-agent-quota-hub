@@ -657,6 +657,58 @@ tr.cc-focus { background: var(--blue-soft) !important; }
 .cc-why-names { font-size: 10.5px; line-height: 1.6; color: var(--ink-3); }
 .cc-why-body .cc-why-foot { margin-bottom: 0; font-size: 11.5px; color: var(--ink-3); }
 
+/* --- 平台库：数据可信度分布条 ---
+   段宽用百分比，容器 min-width:0 + 图例 flex-wrap 保证 320px 不横向溢出。 */
+.conf-dist {
+  min-width: 0; max-width: 100%; margin: 12px 0 2px; padding: 12px 14px 11px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r); box-shadow: var(--shadow);
+}
+.cd-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 9px; min-width: 0; }
+.cd-head > b { font-size: 12.5px; font-weight: 650; color: var(--ink); }
+.cd-head > span { font-size: 11px; color: var(--ink-3); overflow-wrap: anywhere; }
+.cd-head > span b { font-family: var(--mono); color: var(--ink-2); }
+.cd-bar {
+  display: flex; width: 100%; height: 24px; border-radius: 6px; overflow: hidden;
+  background: var(--bg-alt); border: 1px solid var(--line);
+}
+.cd-seg {
+  min-width: 0; padding: 0; border: 0; border-right: 1px solid rgba(255,255,255,.35);
+  color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 650;
+  cursor: pointer; overflow: hidden; white-space: nowrap; transition: opacity .15s;
+}
+.cd-seg:last-child { border-right: 0; }
+.cd-seg.cd-green { background: var(--green); }
+.cd-seg.cd-amber { background: var(--amber); }
+.cd-seg.cd-red   { background: var(--red); }
+.cd-seg:not(.on) { opacity: .78; }
+.cd-seg.on { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255,255,255,.85); }
+.cd-seg:hover { opacity: 1; }
+.cd-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; min-width: 0; }
+.cd-key {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--ink-2); font: 11px var(--sans);
+  cursor: pointer; overflow-wrap: anywhere;
+}
+.cd-key.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.cd-key:hover { border-color: var(--accent); }
+.cd-key b { font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 650; }
+.cd-key em { font-style: normal; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.cd-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.cd-dot.cd-green { background: var(--green); }
+.cd-dot.cd-amber { background: var(--amber); }
+.cd-dot.cd-red   { background: var(--red); }
+.cd-clear { margin-left: auto; }
+.cd-note { margin-top: 9px; font-size: 11px; line-height: 1.65; color: var(--ink-3); overflow-wrap: anywhere; }
+.cd-note b { color: var(--ink-2); font-weight: 650; }
+
+@media (max-width: 520px) {
+  .conf-dist { padding: 10px 11px; }
+  .cd-bar { height: 22px; }
+  .cd-clear { margin-left: 0; }
+}
+
 /* --- 接入核验卡片里的外部证据块 --- */
 .vcc {
   margin-top: 9px; padding: 10px 12px; border-radius: 7px;
@@ -2323,6 +2375,7 @@ kbd,
     <!-- ---------- 平台库 ---------- -->
     <section class="view" id="view-registry">
       <div class="filters" id="filter-bar"></div>
+      <div class="conf-dist" id="conf-dist"></div>
       <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 10px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--ink-3)">共 <b id="result-count" style="color:var(--ink);font-family:var(--mono)">0</b> 个结果 · 点击卡片看详情</span>
         <span id="cc-cover" style="font-size:12px;color:var(--ink-3);margin-left:auto"></span>
@@ -3620,7 +3673,7 @@ const DEFAULT_WALLET = {
   const state = {
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
-    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all' }, ui.filters || {}),
+    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }, ui.filters || {}),
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -3872,7 +3925,9 @@ const DEFAULT_WALLET = {
   /* ============================================================
      视图：平台库
      ============================================================ */
-  function filteredPlatforms() {
+  /* 除「可信度」外的所有条件。分布条用这个集合做 facet 统计：
+     点选某一档后，条上仍能看见其它两档的占比，而不是只剩一整条。 */
+  function basePlatforms() {
     const q = state.search.trim().toLowerCase();
     return PLATFORMS.filter(p => {
       if (state.filters.region !== 'all' && p.region !== state.filters.region) return false;
@@ -3887,6 +3942,12 @@ const DEFAULT_WALLET = {
                   ].join(' ').toLowerCase();
       return hay.includes(q);
     }).sort((a, b) => QUOTA_TYPES[b.quotaType].weight - QUOTA_TYPES[a.quotaType].weight);
+  }
+
+  function filteredPlatforms() {
+    const base = basePlatforms();
+    if (typeof confFilterMatch !== 'function') return base;
+    return base.filter(p => confFilterMatch(p, state.filters.conf));
   }
 
   const CAT_LABEL = { api: 'API', coding: '编程', agent: 'Agent 平台', chat: '对话', research: '研究', image: '图像', video: '视频' };
@@ -3929,6 +3990,20 @@ const DEFAULT_WALLET = {
 
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
+
+    /* 可信度分布条：统计用 basePlatforms()（排除 conf 自身），
+       所以点选某一档后仍看得到完整分布；每次重绘按 state 重刷高亮。 */
+    const confBox = $('#conf-dist');
+    if (confBox && typeof confBreakdown === 'function' && typeof confBarHtml === 'function') {
+      confBox.innerHTML = confBarHtml(confBreakdown(basePlatforms()), state.filters.conf);
+      confBox.querySelectorAll('[data-conf]').forEach(b => {
+        b.addEventListener('click', () => {
+          state.filters.conf = b.dataset.conf;
+          saveUI();
+          renderRegistry();
+        });
+      });
+    }
 
     /* 交叉校验只覆盖「接入总表」这一根轴；网页版 / 编程工具 / 礼包类条目
        不在「官方免费 API」轴上，不给它们硬套标记，也不假装覆盖 48 家。 */
@@ -3988,7 +4063,7 @@ const DEFAULT_WALLET = {
         p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
         typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
-      return `<div class="pcard" data-id="${p.id}">
+      return `<div class="pcard" data-id="${p.id}" data-conf="${esc(p.confidence)}">
         <div class="pcard-top">
           <div style="min-width:0">
             <div class="pcard-name">${esc(p.name)}</div>
@@ -4965,7 +5040,7 @@ function scheduleAdvice(totals) {
    接入向导 + 一键配置脚本生成（纯函数）
    ------------------------------------------------------------
    为什么要重做：原来的接入通道是「矩阵」——3 类额度、5 条路径、3 种网关、
-   23 家速查表全铺开，把判断权丢回给用户。用户要的是「我该怎么做」，
+   25 家速查表全铺开，把判断权丢回给用户。用户要的是「我该怎么做」，
    不是「有这么多种做法」。
 
    这里做两件事：
@@ -9626,6 +9701,49 @@ const VENDOR_ACCESS = [
     conflict: '⚠ 日额度为社区口径，未在官方页找到明确数字。',
     pitfall: '模型选择少；吞吐高但长上下文支持弱于 Gemini。',
     note: '批量任务（几千条分类/抽取）优先试这里，速度快直接等于省时间。'
+  },
+
+  /* ============ 2026-11-10 补录：平台库里已是 daily/api，却漏在核验轴之外 ============
+     这两家此前只在 PLATFORMS / PIPE_BASE 里，没进 VENDOR_ACCESS，于是交叉校验
+     把它们误判成「未覆盖」。端点当日实测：modelscope /v1/models 返回 200，
+     amd-radeon /v1/models 返回 401（存在但需 key），都不是死链。 */
+  {
+    id: 'modelscope', name: '魔搭 ModelScope', vendor: '阿里巴巴 · 魔搭社区', region: 'cn', tier: 3,
+    console: 'https://modelscope.cn/my/myinfo',
+    base: 'https://api-inference.modelscope.cn/v1',
+    alt: [],
+    env: 'MODELSCOPE_API_KEY', keyPrefix: 'ms-',
+    models: ['Qwen/Qwen3-8B', 'deepseek-ai/DeepSeek-V4-Flash'],
+    retired: [],
+    probe: 'models',
+    free: 'yes',
+    freeText: 'API-Inference 对开源模型给每日免费调用：攻略口径「2000 次/日」，另有「250 魔粒/日 ≈ 125 次」的换算口径；热门模型额度会动态下调',
+    verifyDate: '2026-10-20',
+    src: 'https://modelscope.cn/docs',
+    srcName: '魔搭 ModelScope 官方文档（API-Inference 章节）',
+    conflict: '⚠ 免费额度两套口径差 16 倍：「2000 次/日」（2026-09 攻略）与「250 魔粒/日 ≈ 125 次」（按旗舰每次约 2 魔粒折算）。官方未公示统一数字，以控制台魔粒余额为准。',
+    pitfall: '⚠ 魔搭 SDK Token（ms- 开头）与阿里云百炼 DASHSCOPE_API_KEY 不是同一套账号，别混填。API-Inference 只覆盖开源模型，且按「魔粒」而非请求次数扣减；model id 要带命名空间前缀（如 Qwen/…）。',
+    note: '2026-11-10 补录进接入总表，端点实测 /v1/models 返回 200。拿 Kimi K3 / GLM-5.2 这类旗舰做小批量任务最省事的路子，但别把 2000 次当成产能规划。'
+  },
+  {
+    id: 'amd-radeon', name: 'AMD Radeon Cloud Token Factory', vendor: 'AMD', region: 'cn', tier: 3,
+    console: 'https://developer.amd.com.cn/radeon/tokenfactory',
+    base: 'https://developer.amd.com.cn/radeon/api/v1',
+    /* 官方称同时支持 OpenAI / Anthropic 两种协议，但 Anthropic 侧的 base_url
+       未在公开文档里写死，不编一个路径出来——按控制台给出的地址填。 */
+    alt: [],
+    env: 'AMD_RADEON_API_KEY', keyPrefix: '（中国站控制台生成）',
+    models: ['DeepSeek-V4-Flash-0731', 'Qwen3.8-Flash-Next', 'MiniCPM5-1B'],
+    retired: [],
+    probe: 'models',
+    free: 'yes',
+    freeText: '官方列 4 款 Public Free 模型，每日用量上限按 points 计、北京时间 00:00 重置；官方未公示具体额度数字，429 会带 Retry-After',
+    verifyDate: '2026-10-20',
+    src: 'https://developer.amd.com.cn/radeon/tokenfactory',
+    srcName: 'AMD Radeon Cloud Token Factory 官方文档（中国站）',
+    conflict: '⚠ 二手来源称「每日 $10 额度、含 Kimi K3 / GLM 5.2 旗舰」，官方 API 文档只列 4 款 Public Free 小模型（DeepSeek-V4-Flash 系 / Qwen3.8-Flash-Next / MiniCPM5-1B），且未公示额度数字。以官方为准。',
+    pitfall: '⚠ 免费的是 Flash / 小模型，不含旗舰；官方定位是免费试用，不是生产服务。中国站专属，海外 developer.amd.com 没有 Token Factory；RPM 与并发按 key 限制。',
+    note: '2026-11-10 补录进接入总表，端点实测 /v1/models 返回 401（存在，需 key）。OpenAI + Anthropic 双协议可直连 OpenCode，是国内少数不需要海外手机号的海外厂商入口。'
   }
 ];
 
@@ -9937,7 +10055,7 @@ const VERIFY_TIER = {
 };
 
 let VERIFY_FILTER = { tier: 'all', free: 'all', q: '' };
-/* 紧凑模式：23 家全展开约 1.7 万像素，读起来很累。开启后压缩留白、
+/* 紧凑模式：25 家全展开约 1.9 万像素，读起来很累。开启后压缩留白、
    把长段落截到 2 行，但「免费额度 / 易错点 / 口径冲突」三块始终保留可见
    —— 这几块正是判断会不会接错的关键，不能藏。 */
 let VERIFY_COMPACT = false;
@@ -10395,6 +10513,23 @@ const CROSSCHECK = [
     ft:    { kind: 'trial', verified: true, claim: '一次性 $5 试用金 / 30 天，需有效支付方式' },
     intel: { free: true, claim: '$5 赠金 / 30 天需绑卡' },
     relay: null
+  },
+  /* 2026-11-10 补录：这两家在平台库里是 daily/api、端点表也有 base_url，
+     却没进接入总表，被 ccVerdictOf 判成「未覆盖」——那是轴的漏项，不是
+     形态不同。FreeToken / free-llm-intel 都没收录它们，所以判定是「仅本项目覆盖」。 */
+  {
+    id: 'modelscope', name: '魔搭 ModelScope',
+    hub:   { v: 'yes', note: 'API-Inference 开源模型每日免费调用；2000 次/日 与 250 魔粒/日 两套口径冲突' },
+    ft:    null,
+    intel: null,
+    relay: null
+  },
+  {
+    id: 'amd-radeon', name: 'AMD Radeon Cloud Token Factory',
+    hub:   { v: 'yes', note: '官方列 4 款 Public Free 模型、按 points 每日重置；二手来源称含旗舰，官方不支持' },
+    ft:    null,
+    intel: null,
+    relay: null
   }
 ];
 
@@ -10594,9 +10729,10 @@ function ccBadgeFor(id) {
 /* ============================================================
    平台库筛选与「未覆盖」说明
    ------------------------------------------------------------
-   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表只收
-   能拿 API key 直连的 23 家。平台库另外 26 家是网页版 / IDE
-   工具 / 自托管 / 图像视频 / 聚合站 —— 不是漏数据，是轴的边界。
+   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表收
+   能拿 API key 直连的 25 家（2026-11-10 补入 modelscope / amd-radeon）。
+   平台库另外 24 家是网页版 / IDE 工具 / 自托管 / 图像视频 /
+   一次性礼包 —— 不是漏数据，是轴的边界。
    下面几个纯函数让筛选和说明都从数据推导，不手写名单。
    ============================================================ */
 
@@ -10788,9 +10924,102 @@ if (typeof module !== 'undefined' && module.exports) {
 
 
   /* ============================================================
+   数据可信度分布（confidence distribution）
+   ------------------------------------------------------------
+   平台库每条额度都带 confidence：verified / reported / disputed。
+   此前它只以卡片角上一个「存疑」小字出现，用户看不出整张表到底
+   有多少是硬事实、多少是单源说法。这里把它做成一条可点的堆叠条：
+     - 段宽 = 该档在当前筛选结果里的占比
+     - 点段或图例 = 按可信度筛平台库，状态随 UI 偏好持久化
+     - 统计口径刻意**排除 conf 自己的筛选**（facet）：否则点一下
+       「单源」分布条就只剩一整条，失去「看全貌」的意义
+
+   纯函数 + 返回 HTML 字符串，不碰 DOM，方便单测直接 require。
+   ============================================================ */
+
+const CONF_META = [
+  { key: 'verified',  label: '多源核实', cls: 'green', desc: '多来源一致 / 官方页面明确' },
+  { key: 'reported',  label: '单源报道', cls: 'amber', desc: '单一来源，未经二次交叉验证' },
+  { key: 'disputed',  label: '口径冲突', cls: 'red',   desc: '多个来源给出互相冲突的数字' }
+];
+
+const CONF_FILTERS = [['all', '全部']].concat(CONF_META.map(m => [m.key, m.label]));
+
+function confBreakdown(platforms) {
+  const list = Array.isArray(platforms) ? platforms : [];
+  const counts = {};
+  CONF_META.forEach(m => { counts[m.key] = 0; });
+  let unknown = 0;
+  list.forEach(p => {
+    const k = p && p.confidence;
+    if (Object.prototype.hasOwnProperty.call(counts, k)) counts[k]++;
+    else unknown++;
+  });
+  const total = list.length;
+  const rows = CONF_META.map(m => ({
+    key: m.key, label: m.label, cls: m.cls, desc: m.desc,
+    count: counts[m.key],
+    share: total ? Math.round(counts[m.key] * 1000 / total) / 10 : 0
+  }));
+  return { total, rows, unknown };
+}
+
+function confFilterMatch(p, filter) {
+  if (!filter || filter === 'all') return true;
+  return !!p && p.confidence === filter;
+}
+
+function confEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* current 是 state.filters.conf；只影响高亮，不影响统计数字 */
+function confBarHtml(breakdown, current) {
+  const bd = breakdown || { total: 0, rows: [], unknown: 0 };
+  const cur = current || 'all';
+  const active = CONF_META.some(m => m.key === cur) ? cur : 'all';
+  const aria = '数据可信度分布：' + bd.rows.map(r => r.label + ' ' + r.count + ' 条').join('，')
+    + (bd.unknown ? '，未分级 ' + bd.unknown + ' 条' : '');
+
+  const segs = bd.rows.map(r => {
+    const title = r.label + ' ' + r.count + ' 条（' + r.share + '%）· ' + r.desc;
+    return `<button type="button" class="cd-seg cd-${r.cls}${active === r.key ? ' on' : ''}" ` +
+      `data-conf="${r.key}" style="width:${r.share}%" title="${confEsc(title)}" ` +
+      `aria-label="${confEsc(title)}">${r.count}</button>`;
+  }).join('');
+
+  const keys = bd.rows.map(r =>
+    `<button type="button" class="cd-key${active === r.key ? ' on' : ''}" data-conf="${r.key}" ` +
+      `title="${confEsc(r.desc)}"><i class="cd-dot cd-${r.cls}"></i>` +
+      `<span>${confEsc(r.label)}</span><b>${r.count}</b><em>${r.share}%</em></button>`
+  ).join('');
+
+  return `<div class="cd-head">
+      <b>数据可信度分布</b>
+      <span>基于当前其它筛选条件的 <b>${bd.total}</b> 条${bd.unknown ? '（未分级 ' + bd.unknown + ' 条）' : ''} · 点色块筛选</span>
+    </div>
+    <div class="cd-bar" role="img" aria-label="${confEsc(aria)}">${segs}</div>
+    <div class="cd-legend">${keys}
+      <button type="button" class="cd-key cd-clear${active === 'all' ? ' on' : ''}" data-conf="all">清除筛选</button>
+    </div>
+    <p class="cd-note"><b>核实</b>= 多来源一致 / 官方明确，<b>单源</b>= 未二次交叉验证，
+      <b>冲突</b>= 多来源数字打架。分布按<b>除可信度外</b>的其它条件统计，
+      所以点选后仍看得到完整全貌；口径超过 30 天的，仍请到控制台复核。</p>`;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    CONF_META, CONF_FILTERS,
+    confBreakdown, confFilterMatch, confBarHtml
+  };
+}
+
+
+  /* ============================================================
    全局跳转面板（Ctrl/Cmd + K）
    ------------------------------------------------------------
-   解决的是「东西太多找不到」：10 个视图、48 个平台、23 家厂商、12 个模型，
+   解决的是「东西太多找不到」：10 个视图、48 个平台、25 家厂商、12 个模型，
    靠翻侧栏和肉眼扫卡片太慢。这里做一张统一索引，键入即筛，回车直达。
 
    索引在每次打开时重建（80 来条，成本可忽略），而不是在脚本加载时算死——
