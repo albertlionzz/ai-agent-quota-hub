@@ -27,7 +27,7 @@
   const state = {
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
-    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all' }, ui.filters || {}),
+    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all' }, ui.filters || {}),
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -285,6 +285,8 @@
       if (state.filters.region !== 'all' && p.region !== state.filters.region) return false;
       if (state.filters.cat !== 'all' && p.cat !== state.filters.cat) return false;
       if (state.filters.qtype !== 'all' && p.quotaType !== state.filters.qtype) return false;
+      /* 交叉校验筛选：gap / unknown 合并为「待核」，未进接入总表的归「未覆盖」 */
+      if (typeof ccFilterMatch === 'function' && !ccFilterMatch(p.id, state.filters.cc)) return false;
       if (!q) return true;
       const hay = [p.name, p.vendor, p.headline, p.note, p.limits,
                    (p.strengths || []).join(' '), (p.caveats || []).join(' '),
@@ -313,6 +315,10 @@
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           <span class="fl-label">额度形态</span>
           ${mk('qtype', [['all','全部']].concat(Object.entries(QUOTA_TYPES).map(([k, v]) => [k, v.label])), state.filters.qtype)}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px">
+          <span class="fl-label">交叉校验</span>
+          ${mk('cc', typeof CC_FILTERS !== 'undefined' ? CC_FILTERS : [['all','全部']], state.filters.cc)}
         </div>`;
 
       $('#filter-bar').dataset.ready = '1';
@@ -331,20 +337,49 @@
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
-    /* 交叉校验只覆盖「接入总表」那 23 家；网页版 / 编程工具 / 礼包类条目
-       不在「官方免费 API」这一轴，不给它们硬套标记，也不假装覆盖 48 家。 */
+    /* 交叉校验只覆盖「接入总表」这一根轴；网页版 / 编程工具 / 礼包类条目
+       不在「官方免费 API」轴上，不给它们硬套标记，也不假装覆盖 48 家。 */
+    const unc = typeof ccUncovered === 'function' ? ccUncovered(PLATFORMS) : null;
     const ccCover = $('#cc-cover');
-    if (ccCover && typeof CROSSCHECK !== 'undefined') {
-      const ids = new Set(PLATFORMS.map(p => p.id));
-      const covered = CROSSCHECK.filter(c => ids.has(c.id)).length;
-      const conflicts = CROSSCHECK.filter(c => ids.has(c.id) && ccVerdict(c).key === 'conflict').length;
-      ccCover.innerHTML = `交叉校验覆盖 <b>${covered}</b> / ${PLATFORMS.length} 家` +
+    if (ccCover && unc) {
+      const conflicts = PLATFORMS.filter(p => ccVerdictOf(p.id) === 'conflict').length;
+      ccCover.innerHTML = `交叉校验覆盖 <b>${unc.covered}</b> / ${unc.total} 家` +
         (conflicts ? ` · <b style="color:var(--red)">${conflicts} 处冲突</b>` : '') +
+        ` · <button class="cc-jump sm" id="cc-cover-why">为什么？</button>` +
         ` · <button class="cc-jump sm" id="cc-cover-go">三方比对 →</button>`;
       const go = $('#cc-cover-go');
       if (go) go.addEventListener('click', () => {
         if (typeof switchView === 'function') switchView('crosscheck');
       });
+      const why = $('#cc-cover-why');
+      if (why) why.addEventListener('click', () => {
+        const d = $('#cc-why');
+        if (d) { d.open = !d.open; if (d.open) d.scrollIntoView({ block: 'nearest' }); }
+      });
+    }
+
+    /* 只填一次：每次筛选都重建会把用户手动展开的状态收回去 */
+    const whyBox = $('#cc-why');
+    if (whyBox && unc && !whyBox.dataset.ready) {
+      whyBox.innerHTML = `
+        <summary>为什么只有 <b>${unc.covered}</b> / ${unc.total} 家带交叉校验标记？</summary>
+        <div class="cc-why-body">
+          <p>交叉校验比的是「厂商官方免费 API 层」这一根轴：接入总表共 <b>${CROSSCHECK.length}</b> 家，
+             其中 <b>${unc.covered}</b> 家在平台库里有对应条目；FreeToken / free-llm-intel / free-models
+             三个外部追踪源也只在这一轴上有定论。其余 <b>${unc.uncovered}</b> 家形态不同，
+             硬套三方比对只会造出假结论，所以不给标记、也不假装覆盖 ${unc.total} 家。</p>
+          <div class="cc-why-grid">
+            ${unc.groups.map(g => `
+              <div class="cc-why-group">
+                <b>${esc(g.label)} <span>${g.items.length}</span></b>
+                <p>${esc(g.note)}</p>
+                <div class="cc-why-names">${g.items.map(it => esc(it.name)).join(' · ')}</div>
+              </div>`).join('')}
+          </div>
+          <p class="cc-why-foot">这不是漏数据，是轴的边界。要让其中某家进入交叉比对，
+             得先有能与官方 API 免费层并列核验的口径；「三方比对 →」可看现有 ${CROSSCHECK.length} 家怎么判。</p>
+        </div>`;
+      whyBox.dataset.ready = '1';
     }
 
     if (!list.length) {

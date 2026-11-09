@@ -167,6 +167,53 @@
     s.dispatchEvent(new Event('input', { bubbles: true }));
     var n2 = num(txt(q('#result-count')));
     add('清空搜索后结果恢复', n2 === total0, total0 + ' -> ' + n2);
+
+    /* ---------- 交叉校验筛选维度 ---------- */
+    var ccBtns = qa('#filter-bar .fbtn[data-g="cc"]');
+    add('新增「交叉校验」筛选组 = 6 档', ccBtns.length === 6, ccBtns.length);
+    var pick = function (v) {
+      var b = ccBtns.filter(function (x) { return x.getAttribute('data-v') === v; })[0];
+      if (b) b.click();
+      return num(txt(q('#result-count')));
+    };
+    var nConflict = pick('conflict');
+    add('筛「冲突」= 2 家', nConflict === 2, nConflict);
+    var nPending = pick('pending');
+    add('筛「待核」= 3 家', nPending === 3, nPending);
+    var nAgree = pick('agree');
+    add('筛「一致」= 9 家', nAgree === 9, nAgree);
+    var nSolo = pick('solo');
+    add('筛「单源」= 8 家', nSolo === 8, nSolo);
+    var nNone = pick('none');
+    add('筛「未覆盖」= 26 家', nNone === 26, nNone);
+    add('五档加总 = 48（互斥且无遗漏）',
+      nConflict + nPending + nAgree + nSolo + nNone === 48,
+      [nConflict, nPending, nAgree, nSolo, nNone].join('+'));
+    add('「未覆盖」结果里没有硬套交叉角标',
+      qa('#platform-grid .cc-badge').length === 0,
+      qa('#platform-grid .cc-badge').length);
+    var nAll = pick('all');
+    add('复位「全部」恢复 48', nAll === 48, nAll);
+
+    /* ---------- 未覆盖 26 家的说明 ---------- */
+    var why = q('#cc-why');
+    add('说明块已渲染且默认收起', !!why && !why.open && txt(why).length > 0);
+    var whyBtn = q('#cc-cover-why');
+    if (whyBtn) whyBtn.click();
+    add('「为什么？」能展开说明', !!why && why.open, why ? String(why.open) : 'missing');
+    var whyTxt = txt(why);
+    var groups = qa('#cc-why .cc-why-group');
+    add('说明按形态分组（≥5 组）', groups.length >= 5, groups.length);
+    add('说明写清 22 / 48 / 26 三个数字',
+      /22/.test(whyTxt) && /48/.test(whyTxt) && /26/.test(whyTxt));
+    add('说明明说「不是漏数据，是轴的边界」', /轴的边界/.test(whyTxt));
+    add('分组里列出真实平台名', /Trae|通义灵码|Dify|可灵/.test(whyTxt),
+      whyTxt.replace(/\s+/g, ' ').slice(0, 60));
+    /* 展开态必须单独查横向溢出：后面 s16 跑的是收起后的状态，覆盖不到这里 */
+    add('说明块展开后无横向溢出（' + window.innerWidth + 'px）',
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      document.documentElement.scrollWidth + '/' + document.documentElement.clientWidth);
+    if (why) why.open = false;
   }
 
   /* ---------- 11. 项目编排 / 总控：换模板要重算 ---------- */

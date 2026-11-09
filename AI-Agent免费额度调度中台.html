@@ -242,6 +242,8 @@ body {
   margin-bottom: 14px;
 }
 .filters .fl-label { font-size: 11.5px; color: var(--ink-3); margin-right: 2px; }
+/* 平台库四组筛选各占一行，别让 flex 把「交叉校验」挤到「额度形态」尾巴上 */
+#filter-bar > div { flex: 0 0 100%; }
 .fbtn {
   font-family: inherit; font-size: 12px; font-weight: 500;
   padding: 4.5px 11px; border-radius: 7px;
@@ -253,7 +255,8 @@ body {
 .fbtn.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 
 .platform-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  /* min(310px,100%)：320px 视口下卡片能收缩，别把页面撑出横向滚动 */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(310px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -611,6 +614,48 @@ tr.cc-focus { background: var(--blue-soft) !important; }
 .cc-badge-gap, .cc-badge-unknown { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .cc-badge-agree { background: var(--green-soft); color: var(--green); border-color: transparent; }
 .cc-badge-solo { background: var(--bg-alt); color: var(--ink-3); }
+
+/* --- 平台库「为什么未覆盖」说明 --- */
+.cc-why {
+  margin: 0 0 12px; border: 1px solid var(--line);
+  border-radius: 9px; background: var(--card);
+}
+.cc-why > summary {
+  cursor: pointer; list-style: none; padding: 10px 14px;
+  font-size: 12px; font-weight: 550; color: var(--ink-2);
+  display: flex; align-items: center; gap: 7px;
+}
+.cc-why > summary::-webkit-details-marker { display: none; }
+.cc-why > summary::before {
+  content: '▸'; color: var(--accent); font-size: 12px; transition: transform .15s;
+}
+.cc-why[open] > summary::before { transform: rotate(90deg); }
+.cc-why > summary b { color: var(--ink); font-family: var(--mono); font-weight: 650; }
+.cc-why > summary:hover { color: var(--ink); }
+.cc-why-body { padding: 2px 14px 14px; border-top: 1px solid var(--line); }
+.cc-why-body > p { margin: 10px 0; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+.cc-why-body > p b { color: var(--ink); font-family: var(--mono); }
+.cc-why-grid {
+  /* min(260px,100%) 让窄屏能收缩到容器宽，避免长英文串撑出横向溢出 */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 9px; margin: 12px 0; min-width: 0;
+}
+.cc-why-group {
+  min-width: 0; padding: 10px 12px; background: var(--bg-alt);
+  border: 1px solid var(--line); border-radius: 7px;
+}
+.cc-why-body > p, .cc-why-group p, .cc-why-names {
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.cc-why-group > b { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 650; color: var(--ink); }
+.cc-why-group > b span {
+  margin-left: 4px; padding: 0 5px; font-family: var(--mono); font-size: 11px;
+  color: var(--accent); background: var(--card);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+.cc-why-group p { margin: 0 0 7px; font-size: 11px; line-height: 1.6; color: var(--ink-2); }
+.cc-why-names { font-size: 10.5px; line-height: 1.6; color: var(--ink-3); }
+.cc-why-body .cc-why-foot { margin-bottom: 0; font-size: 11.5px; color: var(--ink-3); }
 
 /* --- 接入核验卡片里的外部证据块 --- */
 .vcc {
@@ -2282,6 +2327,7 @@ kbd,
         <span style="font-size:12px;color:var(--ink-3)">共 <b id="result-count" style="color:var(--ink);font-family:var(--mono)">0</b> 个结果 · 点击卡片看详情</span>
         <span id="cc-cover" style="font-size:12px;color:var(--ink-3);margin-left:auto"></span>
       </div>
+      <details class="cc-why" id="cc-why"></details>
       <div class="platform-grid" id="platform-grid"></div>
     </section>
 
@@ -3574,7 +3620,7 @@ const DEFAULT_WALLET = {
   const state = {
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
-    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all' }, ui.filters || {}),
+    filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all' }, ui.filters || {}),
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -3832,6 +3878,8 @@ const DEFAULT_WALLET = {
       if (state.filters.region !== 'all' && p.region !== state.filters.region) return false;
       if (state.filters.cat !== 'all' && p.cat !== state.filters.cat) return false;
       if (state.filters.qtype !== 'all' && p.quotaType !== state.filters.qtype) return false;
+      /* 交叉校验筛选：gap / unknown 合并为「待核」，未进接入总表的归「未覆盖」 */
+      if (typeof ccFilterMatch === 'function' && !ccFilterMatch(p.id, state.filters.cc)) return false;
       if (!q) return true;
       const hay = [p.name, p.vendor, p.headline, p.note, p.limits,
                    (p.strengths || []).join(' '), (p.caveats || []).join(' '),
@@ -3860,6 +3908,10 @@ const DEFAULT_WALLET = {
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           <span class="fl-label">额度形态</span>
           ${mk('qtype', [['all','全部']].concat(Object.entries(QUOTA_TYPES).map(([k, v]) => [k, v.label])), state.filters.qtype)}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px">
+          <span class="fl-label">交叉校验</span>
+          ${mk('cc', typeof CC_FILTERS !== 'undefined' ? CC_FILTERS : [['all','全部']], state.filters.cc)}
         </div>`;
 
       $('#filter-bar').dataset.ready = '1';
@@ -3878,20 +3930,49 @@ const DEFAULT_WALLET = {
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
-    /* 交叉校验只覆盖「接入总表」那 23 家；网页版 / 编程工具 / 礼包类条目
-       不在「官方免费 API」这一轴，不给它们硬套标记，也不假装覆盖 48 家。 */
+    /* 交叉校验只覆盖「接入总表」这一根轴；网页版 / 编程工具 / 礼包类条目
+       不在「官方免费 API」轴上，不给它们硬套标记，也不假装覆盖 48 家。 */
+    const unc = typeof ccUncovered === 'function' ? ccUncovered(PLATFORMS) : null;
     const ccCover = $('#cc-cover');
-    if (ccCover && typeof CROSSCHECK !== 'undefined') {
-      const ids = new Set(PLATFORMS.map(p => p.id));
-      const covered = CROSSCHECK.filter(c => ids.has(c.id)).length;
-      const conflicts = CROSSCHECK.filter(c => ids.has(c.id) && ccVerdict(c).key === 'conflict').length;
-      ccCover.innerHTML = `交叉校验覆盖 <b>${covered}</b> / ${PLATFORMS.length} 家` +
+    if (ccCover && unc) {
+      const conflicts = PLATFORMS.filter(p => ccVerdictOf(p.id) === 'conflict').length;
+      ccCover.innerHTML = `交叉校验覆盖 <b>${unc.covered}</b> / ${unc.total} 家` +
         (conflicts ? ` · <b style="color:var(--red)">${conflicts} 处冲突</b>` : '') +
+        ` · <button class="cc-jump sm" id="cc-cover-why">为什么？</button>` +
         ` · <button class="cc-jump sm" id="cc-cover-go">三方比对 →</button>`;
       const go = $('#cc-cover-go');
       if (go) go.addEventListener('click', () => {
         if (typeof switchView === 'function') switchView('crosscheck');
       });
+      const why = $('#cc-cover-why');
+      if (why) why.addEventListener('click', () => {
+        const d = $('#cc-why');
+        if (d) { d.open = !d.open; if (d.open) d.scrollIntoView({ block: 'nearest' }); }
+      });
+    }
+
+    /* 只填一次：每次筛选都重建会把用户手动展开的状态收回去 */
+    const whyBox = $('#cc-why');
+    if (whyBox && unc && !whyBox.dataset.ready) {
+      whyBox.innerHTML = `
+        <summary>为什么只有 <b>${unc.covered}</b> / ${unc.total} 家带交叉校验标记？</summary>
+        <div class="cc-why-body">
+          <p>交叉校验比的是「厂商官方免费 API 层」这一根轴：接入总表共 <b>${CROSSCHECK.length}</b> 家，
+             其中 <b>${unc.covered}</b> 家在平台库里有对应条目；FreeToken / free-llm-intel / free-models
+             三个外部追踪源也只在这一轴上有定论。其余 <b>${unc.uncovered}</b> 家形态不同，
+             硬套三方比对只会造出假结论，所以不给标记、也不假装覆盖 ${unc.total} 家。</p>
+          <div class="cc-why-grid">
+            ${unc.groups.map(g => `
+              <div class="cc-why-group">
+                <b>${esc(g.label)} <span>${g.items.length}</span></b>
+                <p>${esc(g.note)}</p>
+                <div class="cc-why-names">${g.items.map(it => esc(it.name)).join(' · ')}</div>
+              </div>`).join('')}
+          </div>
+          <p class="cc-why-foot">这不是漏数据，是轴的边界。要让其中某家进入交叉比对，
+             得先有能与官方 API 免费层并列核验的口径；「三方比对 →」可看现有 ${CROSSCHECK.length} 家怎么判。</p>
+        </div>`;
+      whyBox.dataset.ready = '1';
     }
 
     if (!list.length) {
@@ -10510,6 +10591,78 @@ function ccBadgeFor(id) {
     `title="交叉校验 · ${ccEsc(v.label)}｜${ccEsc(detail)}｜点此跳到三方比对">校验·${ccEsc(CC_BADGE_TEXT[v.key])}</span>`;
 }
 
+/* ============================================================
+   平台库筛选与「未覆盖」说明
+   ------------------------------------------------------------
+   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表只收
+   能拿 API key 直连的 23 家。平台库另外 26 家是网页版 / IDE
+   工具 / 自托管 / 图像视频 / 聚合站 —— 不是漏数据，是轴的边界。
+   下面几个纯函数让筛选和说明都从数据推导，不手写名单。
+   ============================================================ */
+
+const CC_FILTERS = [
+  ['all', '全部'], ['conflict', '冲突'], ['pending', '待核'],
+  ['agree', '一致'], ['solo', '单源'], ['none', '未覆盖']
+];
+
+/* 不在接入总表里的平台判为 none（未覆盖），不假装给它一个定论 */
+function ccVerdictOf(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  return it ? ccVerdict(it).key : 'none';
+}
+
+function ccFilterMatch(id, filter) {
+  if (!filter || filter === 'all') return true;
+  const v = ccVerdictOf(id);
+  if (filter === 'none') return v === 'none';
+  if (filter === 'pending') return v === 'gap' || v === 'unknown';
+  return v === filter;
+}
+
+/* 分组按优先级命中第一条；最后一条兜底，保证不丢条目 */
+const CC_UNCOVERED_GROUPS = [
+  { key: 'selfhost', label: '开源自托管',
+    note: '软件本身免费，成本落在你自己的硬件 / 服务器上，没有厂商额度口径可比。',
+    match: p => p.quotaType === 'selfhost' },
+  { key: 'freechat', label: '网页 / 客户端免费版',
+    note: '无开放 API、不能自动化调用；三个外部追踪源都只记录 API 层。',
+    match: p => p.quotaType === 'freechat' },
+  { key: 'onetime', label: '一次性礼包 / 试用金',
+    note: '注册赠送、会过期，不是稳定免费层，口径随活动变动，不进常态比对。',
+    match: p => p.quotaType === 'gift' || p.quotaType === 'trial' },
+  { key: 'coding', label: 'IDE / 编程工具订阅',
+    note: '额度挂在工具订阅或席位上，不是可路由的 API key。',
+    match: p => p.cat === 'coding' },
+  { key: 'media', label: '图像 / 视频生成产品',
+    note: '按次数或时长计费，与 token 额度不是同一根轴。',
+    match: p => p.cat === 'image' || p.cat === 'video' },
+  { key: 'relay', label: '聚合 / 中转站',
+    note: '非厂商官方 API 本体，或新收录尚未进接入总表，待补核验。',
+    match: p => p.cat === 'api' },
+  { key: 'product', label: '其它产品形态',
+    note: '按任务 / 席位 / 会话给额度，无法与官方 API 免费层并列比对。',
+    match: () => true }
+];
+
+function ccUncovered(platforms) {
+  const rest = platforms.filter(p => ccVerdictOf(p.id) === 'none');
+  const buckets = new Map(CC_UNCOVERED_GROUPS.map(g => [g.key, []]));
+  const fallback = CC_UNCOVERED_GROUPS[CC_UNCOVERED_GROUPS.length - 1];
+  rest.forEach(p => {
+    const g = CC_UNCOVERED_GROUPS.find(x => x.match(p)) || fallback;
+    buckets.get(g.key).push({ id: p.id, name: p.name });
+  });
+  const groups = CC_UNCOVERED_GROUPS
+    .filter(g => buckets.get(g.key).length)
+    .map(g => ({ key: g.key, label: g.label, note: g.note, items: buckets.get(g.key) }));
+  return {
+    total: platforms.length,
+    covered: platforms.length - rest.length,
+    uncovered: rest.length,
+    groups
+  };
+}
+
 let __ccFilter = 'all';
 
 /* 视图渲染（仅浏览器内调用） */
@@ -10623,6 +10776,8 @@ function renderCrosscheck() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT, CC_STATUS_NOTE,
+    CC_FILTERS, CC_UNCOVERED_GROUPS,
+    ccVerdictOf, ccFilterMatch, ccUncovered,
     ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
     ccStatusNote,
     ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,

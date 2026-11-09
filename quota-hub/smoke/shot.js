@@ -2,7 +2,8 @@
    用法：node shot.js <视图id> <输出png> [元素id] [宽] [高] [冷却张数] [只留该卡片]
    第 6 个参数把前 N 张额度卡设成限流，好看到冷却态的样子。
    第 7 个参数传 1 时，把同视图其他卡片藏掉——长页面（接入通道 >5000px）
-   在无头浏览器里滚动后常常来不及重绘，截出来是一片空白，藏掉比滚动可靠。 */
+   在无头浏览器里滚动后常常来不及重绘，截出来是一片空白，藏掉比滚动可靠。
+   第 9 个参数传元素 id，会在切视图后把该 <details> 展开（默认收起的说明块）。 */
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -19,6 +20,7 @@ const W = process.argv[5] || '1400';
 const H = process.argv[6] || '900';
 const coolN = parseInt(process.argv[7] || '0', 10) || 0;
 const focus = process.argv[8] === '1';
+const openId = process.argv[9] || '';
 
 const html = fs.readFileSync(ART, 'utf8');
 const seed = `
@@ -28,6 +30,7 @@ window.addEventListener('load', function () {
   setTimeout(function () {
     var nav = document.querySelector('[data-v="${view}"]');
     if (nav) nav.click();
+    if ('${openId}') { var d = document.getElementById('${openId}'); if (d) d.open = true; }
     if (${focus}) {
       var t = document.getElementById('${anchor}');
       if (t) {

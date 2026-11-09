@@ -370,6 +370,78 @@ function ccBadgeFor(id) {
     `title="交叉校验 · ${ccEsc(v.label)}｜${ccEsc(detail)}｜点此跳到三方比对">校验·${ccEsc(CC_BADGE_TEXT[v.key])}</span>`;
 }
 
+/* ============================================================
+   平台库筛选与「未覆盖」说明
+   ------------------------------------------------------------
+   交叉校验比的是「厂商官方免费 API 层」这一根轴，接入总表只收
+   能拿 API key 直连的 23 家。平台库另外 26 家是网页版 / IDE
+   工具 / 自托管 / 图像视频 / 聚合站 —— 不是漏数据，是轴的边界。
+   下面几个纯函数让筛选和说明都从数据推导，不手写名单。
+   ============================================================ */
+
+const CC_FILTERS = [
+  ['all', '全部'], ['conflict', '冲突'], ['pending', '待核'],
+  ['agree', '一致'], ['solo', '单源'], ['none', '未覆盖']
+];
+
+/* 不在接入总表里的平台判为 none（未覆盖），不假装给它一个定论 */
+function ccVerdictOf(id) {
+  const it = CROSSCHECK.find(c => c.id === id);
+  return it ? ccVerdict(it).key : 'none';
+}
+
+function ccFilterMatch(id, filter) {
+  if (!filter || filter === 'all') return true;
+  const v = ccVerdictOf(id);
+  if (filter === 'none') return v === 'none';
+  if (filter === 'pending') return v === 'gap' || v === 'unknown';
+  return v === filter;
+}
+
+/* 分组按优先级命中第一条；最后一条兜底，保证不丢条目 */
+const CC_UNCOVERED_GROUPS = [
+  { key: 'selfhost', label: '开源自托管',
+    note: '软件本身免费，成本落在你自己的硬件 / 服务器上，没有厂商额度口径可比。',
+    match: p => p.quotaType === 'selfhost' },
+  { key: 'freechat', label: '网页 / 客户端免费版',
+    note: '无开放 API、不能自动化调用；三个外部追踪源都只记录 API 层。',
+    match: p => p.quotaType === 'freechat' },
+  { key: 'onetime', label: '一次性礼包 / 试用金',
+    note: '注册赠送、会过期，不是稳定免费层，口径随活动变动，不进常态比对。',
+    match: p => p.quotaType === 'gift' || p.quotaType === 'trial' },
+  { key: 'coding', label: 'IDE / 编程工具订阅',
+    note: '额度挂在工具订阅或席位上，不是可路由的 API key。',
+    match: p => p.cat === 'coding' },
+  { key: 'media', label: '图像 / 视频生成产品',
+    note: '按次数或时长计费，与 token 额度不是同一根轴。',
+    match: p => p.cat === 'image' || p.cat === 'video' },
+  { key: 'relay', label: '聚合 / 中转站',
+    note: '非厂商官方 API 本体，或新收录尚未进接入总表，待补核验。',
+    match: p => p.cat === 'api' },
+  { key: 'product', label: '其它产品形态',
+    note: '按任务 / 席位 / 会话给额度，无法与官方 API 免费层并列比对。',
+    match: () => true }
+];
+
+function ccUncovered(platforms) {
+  const rest = platforms.filter(p => ccVerdictOf(p.id) === 'none');
+  const buckets = new Map(CC_UNCOVERED_GROUPS.map(g => [g.key, []]));
+  const fallback = CC_UNCOVERED_GROUPS[CC_UNCOVERED_GROUPS.length - 1];
+  rest.forEach(p => {
+    const g = CC_UNCOVERED_GROUPS.find(x => x.match(p)) || fallback;
+    buckets.get(g.key).push({ id: p.id, name: p.name });
+  });
+  const groups = CC_UNCOVERED_GROUPS
+    .filter(g => buckets.get(g.key).length)
+    .map(g => ({ key: g.key, label: g.label, note: g.note, items: buckets.get(g.key) }));
+  return {
+    total: platforms.length,
+    covered: platforms.length - rest.length,
+    uncovered: rest.length,
+    groups
+  };
+}
+
 let __ccFilter = 'all';
 
 /* 视图渲染（仅浏览器内调用） */
@@ -483,6 +555,8 @@ function renderCrosscheck() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CROSSCHECK, CC_SOURCES_BASE, CC_BADGE_TEXT, CC_STATUS_NOTE,
+    CC_FILTERS, CC_UNCOVERED_GROUPS,
+    ccVerdictOf, ccFilterMatch, ccUncovered,
     ccStanceHub, ccStanceFt, ccStanceIntel, ccVerdict, ccStanceCls, CC_STANCE_LABEL,
     ccStatusNote,
     ccEsc, ccHoursSince, ccDaysSince, ccFreshLevel, ccFreshnessRows,

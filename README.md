@@ -39,7 +39,7 @@
 | 重置日程 | 今天哪些额度会刷新、哪些只减不增、哪些周期未公示 |
 | 接入通道 | 两个问题给一条路（向导）、粘贴 key 生成配置命令、三类额度、五条路径、五家网关对比、三种导出（LiteLLM yaml / runner / 通用 .env） |
 | 接入核验 | 23 家主流厂商的端点 / 环境变量 / model id / 退役清单 / 免费状态，附自动探活与自检脚本导出 |
-| 交叉校验 | 三源口径并列比对 + 冲突高亮；顶部「数据新鲜度」条列三源核实日期与最近探活；点厂商名跳接入核验、核验卡片可跳回；平台库 22 张卡片带轻量角标 |
+| 交叉校验 | 三源口径并列比对 + 冲突高亮；顶部「数据新鲜度」条列三源核实日期与最近探活；点厂商名跳接入核验、核验卡片可跳回；平台库 22 张卡片带轻量角标，可按判定筛选，并附 26 家「为什么不给标记」的分形态说明 |
 | 情报与避坑 | 已终止的通道、数据存疑项 |
 
 ## 快速开始
@@ -53,7 +53,7 @@ cd quota-hub
 python build.py          # 产出 ../AI-Agent免费额度调度中台.html
 ```
 
-`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → COOLDOWN → WALLETIO → SCHEDULE → ONBOARD → CAP → PIPE → ORCH → ACCESS → PROBESNAP + PROBE → VERIFY → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表。
+`build.py` 把 `assets/*.js` 按固定顺序注入 `app.js` 的 IIFE 内部（USAGE → COOLDOWN → SCHEDULE → ONBOARD → WALLETIO → CAP → PIPE → ORCH → ACCESS → PROBESNAP + PROBE → VERIFY → CCSOURCES + CROSSCHECK → PALETTE），再套进 `template.html`。顺序有依赖：orchestrator 用 pipeline 的产能函数，access 与 verify 用 pipeline 的端点表，crosscheck 用来源快照与 verify 的厂商 id。
 
 ## 自动探活（probe.json）
 
@@ -114,6 +114,8 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 **三处联动**：接入核验卡片对冲突厂商直接列出两个外部来源的说法，可一键跳到三方比对；交叉校验页点厂商名按 id 跳回核验卡片并高亮。平台库 48 家里只有 22 家能映射到接入总表（Meta Llama 无对应条目，网页版 / 编程工具 / 礼包类不在「官方免费 API」这一轴），所以只给这 22 家加轻量角标，不假装全覆盖。
 
+**平台库可筛选**：筛选区新增「交叉校验」一组 6 档 —— 冲突 2 / 待核 3 / 一致 9 / 单源 8 / 未覆盖 26，五档互斥且加总 48（「待核」合并 `gap` 与 `unknown`）。筛选状态随 UI 偏好持久化，旧 localStorage 没有 `cc` 字段也能正常回落到「全部」。结果行下方的折叠块把 26 家按真实形态分成 7 组（自托管、网页客户端、一次性礼包、IDE 工具、图像视频、聚合中转站、其它产品形态），逐组列出名单与原因：不是漏数据，是轴的边界。分组由 `quotaType / cat` 推导，不手写名单。
+
 **数据新鲜度**：页面顶部列出本项目口径日期、三个外部来源的核实 / 巡检时间戳和最近一次端点探活。`quota-hub/probe/sources.py` 由 `probe.yml` 每 6 小时跑一次，只抓三源公开的时间戳（FreeToken 台账 `updated`、free-llm-intel README 巡检戳、free-models 的 HTTP 时间头），**不解析额度内容**——脚本替不了人判断谁说得对。抓不到就标 `unreachable` 并沿用基线日期，不假装更新过。探活与口径是两种新鲜度：探活只证明端点接得通，不更新任何额度数字。卡片只对 `ok` 不写说明；`unreachable / no-date / offline / baseline / missing` 一律注明日期从哪来，不拿基线的天数冒充「新鲜」。
 
 **数据层门禁**：`quota-hub/check-confidence.js` 把 23 家交叉校验结论与平台库 `confidence` 逐 id 比对（22 家可映射，`llama` 无官方 API 属正常跳过）。只卡一条硬逻辑：三方比对已判 `conflict / gap / unknown` 的厂商，平台库不能标 `verified`（其定义是「多来源一致 / 官方明确」）。`--check` 让 CI 红，由人裁定，不自动改写人工判断；`--out` 可导出可核对的映射表。这条门禁实测抓出一处真漂移：**Kimi 已是三方硬冲突却标 `verified`**，已改为 `disputed` 并注明冲突来源。`agree / solo` 不受约束——「存在性一致」与「限速数字有分歧」是两根轴。
@@ -144,15 +146,18 @@ node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本�
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
 python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
 python test-sources.py   # 来源时间戳 14 项：离线兜底、字段解析（含上游加粗巡检戳）、单源失败隔离、产物结构
-node test-crosscheck.js  # 双源交叉校验 44 项：立场归一、判定、新鲜度状态文案、联动、平台库 id 映射
+node test-crosscheck.js  # 双源交叉校验 56 项：立场归一、判定、新鲜度文案、联动、筛选档位、未覆盖分组
 node test-confidence.js  # confidence 门禁 15 项：规则、22 家映射、漂移检出、CLI 退出码
 node check-confidence.js --check   # 数据层门禁（CI 也跑，有漂移退出 1）
-node smoke/run.js        # 浏览器冒烟 332 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
+node smoke/run.js        # 浏览器冒烟 396 项 × 4 场景（1440 / 360 / 脏存储 / __proto__ 污染）
+node smoke/narrow.js     # 真实窄屏 24 项：320/360/518/768 × 说明块收起/展开两态
 ```
 
 `test-probe.py` 用本地 `http.server` 造 200/401/404/500/超时五种端点，所以不需要外网、不碰任何真平台的账号。其中一条断言是：错误响应体里回显了 key 时必须被 `[redacted]` 掉。
 
 `smoke/run.js` 用 Edge 无头把产物真正跑起来，只做 DOM 交互（点按钮、敲键盘、派发事件），不调用内部函数——所以它测的是用户实际会遇到的东西。它也会跑「脏 localStorage」和 `__proto__` 污染两种异常数据，确认页面照常渲染。
+
+有个容易信以为真的坑：**headless Edge 有最小视口宽度**（本机约 518px），`--window-size=360` 实际按 518 渲染——`run.js` 的 mobile 场景测不到真窄屏。`smoke/narrow.js` 把产物塞进指定宽度的 iframe，读 iframe 内 `documentElement.scrollWidth`，覆盖 320 / 360 / 518 / 768 四档，每档同时测说明块**收起与展开**两态（只测收起会漏掉展开后长英文串撑宽）。这套 harness 顺带逼出两个真实布局修复：`.platform-grid` 的 `minmax(310px,1fr)` 在 320px 撑出 16px 横向滚动，以及说明块分组里的长平台名不换行。两处都改成 `min(...,100%)` + `overflow-wrap:anywhere`。
 
 `test-verify.js` 里最有用的一条断言：核验表里的 `base_url` 必须与端点表 `PIPE_BASE` 完全一致 —— 防止只改一处。
 
@@ -181,7 +186,8 @@ quota-hub/
   smoke/
     harness.js             注入页面的冒烟脚本
     run.js                 无头浏览器执行器（4 场景）
-    shot.js                指定视图截图（node shot.js verify out.png probe-body）
+    narrow.js              真实窄屏 iframe 回归（4 宽度 × 收起/展开）
+    shot.js                指定视图截图（末位可传 details id 展开说明块）
   assets/
     data.js                48 个平台的额度数据
     app.js                 主逻辑与视图框架
@@ -198,7 +204,7 @@ quota-hub/
     walletio.js            备份导出/导入与校验
     schedule.js            重置日程分桶
     onboard.js             接入向导与配置脚本生成
-    crosscheck.js          双源交叉校验（判定 / 新鲜度 / 联动 / 平台库角标）
+    crosscheck.js          双源交叉校验（判定 / 新鲜度 / 联动 / 筛选档位 / 未覆盖分组）
     palette.js             Ctrl+K 全局跳转
 ```
 

@@ -188,5 +188,81 @@ ok('唯一映射不上的只有 llama（Meta 无官方 API）', () =>
 ok('两处冲突在平台库里都有对应卡片', () =>
   eq(CROSSCHECK.filter(c => pids.has(c.id) && ccVerdict(c).key === 'conflict').length, 2));
 
+/* ================= 平台库筛选 / 未覆盖说明（本轮） ================= */
+const ccx = require('./assets/crosscheck.js');
+const unc = ccx.ccUncovered(dctx.PLATFORMS);
+
+ok('CC_FILTERS 提供 6 档且以「全部」开头', () => {
+  eq(ccx.CC_FILTERS.length, 6);
+  eq(ccx.CC_FILTERS[0][0], 'all');
+  eq(new Set(ccx.CC_FILTERS.map(f => f[0])).size, 6);
+  ccx.CC_FILTERS.forEach(f => assert(f[1] && f[1].length > 0, '缺标签: ' + f[0]));
+});
+ok('ccVerdictOf 对冲突 / 待核厂商给出正确定论', () => {
+  eq(ccx.ccVerdictOf('deepseek'), 'conflict');
+  eq(ccx.ccVerdictOf('moonshot'), 'conflict');
+  ['openai', 'xai', 'longcat'].forEach(id => eq(ccx.ccVerdictOf(id), 'unknown'));
+});
+ok('ccVerdictOf 对未进接入总表的条目返回 none', () => {
+  eq(ccx.ccVerdictOf(unc.groups[0].items[0].id), 'none');
+  eq(ccx.ccVerdictOf('不存在的平台'), 'none');
+});
+ok('llama 有定论但不在平台库（覆盖 22 而非 23 的原因）', () => {
+  assert(ccx.ccVerdictOf('llama') !== 'none');
+  assert(!pids.has('llama'));
+});
+ok('ccFilterMatch：all / 空值放行全部', () => {
+  assert(dctx.PLATFORMS.every(p => ccx.ccFilterMatch(p.id, 'all')));
+  assert(dctx.PLATFORMS.every(p => ccx.ccFilterMatch(p.id, null)));
+});
+ok('ccFilterMatch：未知档位不误放行', () =>
+  eq(ccx.ccFilterMatch('deepseek', 'not-a-filter'), false));
+ok('ccFilterMatch：pending 合并 gap + unknown', () => {
+  ['openai', 'xai', 'longcat'].forEach(id => eq(ccx.ccFilterMatch(id, 'pending'), true, id));
+  eq(ccx.ccFilterMatch('deepseek', 'pending'), false);
+});
+ok('各档位数量 2 / 3 / 9 / 8 / 26，加总 48', () => {
+  const counts = {};
+  ['conflict', 'pending', 'agree', 'solo', 'none'].forEach(f => {
+    counts[f] = dctx.PLATFORMS.filter(p => ccx.ccFilterMatch(p.id, f)).length;
+  });
+  eq(counts.conflict, 2);
+  eq(counts.pending, 3);
+  eq(counts.agree, 9);
+  eq(counts.solo, 8);
+  eq(counts.none, 26);
+  eq(Object.values(counts).reduce((a, b) => a + b, 0), 48);
+});
+ok('档位互斥：每个平台只落进一个档位', () => {
+  dctx.PLATFORMS.forEach(p => {
+    const hit = ['conflict', 'pending', 'agree', 'solo', 'none']
+      .filter(f => ccx.ccFilterMatch(p.id, f));
+    eq(hit.length, 1, p.id + ' 命中 ' + hit.join(','));
+  });
+});
+ok('ccUncovered：22 覆盖 / 26 未覆盖 / 总 48', () => {
+  eq(unc.total, 48);
+  eq(unc.covered, 22);
+  eq(unc.uncovered, 26);
+  eq(unc.covered + unc.uncovered, unc.total);
+});
+ok('未覆盖分组完整、无重复、无遗漏', () => {
+  const ids = unc.groups.flatMap(g => g.items.map(it => it.id));
+  eq(ids.length, 26);
+  eq(new Set(ids).size, 26);
+  const coveredIds = dctx.PLATFORMS.filter(p => ccx.ccVerdictOf(p.id) !== 'none').map(p => p.id);
+  coveredIds.forEach(id => assert(!ids.includes(id), id + ' 被误归未覆盖'));
+});
+ok('每个分组都有可读说明与非空名单', () => {
+  assert(unc.groups.length >= 5, '分组太少: ' + unc.groups.length);
+  eq(new Set(unc.groups.map(g => g.key)).size, unc.groups.length);
+  unc.groups.forEach(g => {
+    assert(g.label && g.label.length > 2, g.key + ' 缺标题');
+    assert(g.note && g.note.length > 10, g.key + ' 缺说明');
+    assert(g.items.length > 0, g.key + ' 空组');
+    g.items.forEach(it => assert(it.name, g.key + ' 条目缺名称'));
+  });
+});
+
 console.log(`\n交叉校验单测：${pass} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);
