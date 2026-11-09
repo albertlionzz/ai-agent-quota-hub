@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "fetchedAt": "2026-11-09T18:19:11Z",
+  "fetchedAt": "2026-11-09T19:13:46Z",
   "runner": "github-actions",
   "note": "只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。",
   "sources": [
