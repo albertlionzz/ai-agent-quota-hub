@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "fetchedAt": "2026-11-09T06:46:11Z",
+  "fetchedAt": "2026-11-09T15:42:40Z",
   "runner": "github-actions",
   "note": "只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。",
   "sources": [
@@ -20,7 +20,7 @@
       "axis": "额度口径",
       "url": "https://github.com/rockbenben/free-llm-intel",
       "status": "ok",
-      "note": "README 巡检时间戳 2026-11-09 13:03:34（原文未标时区，按日期粒度记）"
+      "note": "README 巡检时间戳 2026-11-09 16:03:19（原文未标时区，按日期粒度记）"
     },
     {
       "id": "relays",
