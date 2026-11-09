@@ -129,6 +129,7 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 1. bot 用 `GITHUB_TOKEN` 提交的 push **不会触发其它工作流**（GitHub 的防循环机制），而 Pages 与 probe 并发、跑在提交之前，内联的还是旧快照。所以 `probe.yml` 提交成功后会 `gh workflow run pages.yml` 显式派发一次发布，让 `build.py` 重新内联刚提交的 JSON。派发失败只告警、不让 probe 报红。
 2. 只更新 JSON 不重建仓库根那份单文件 HTML，离线下载的人永远拿到上一轮快照。现在 `probe.yml` 在提交前也跑一次 `build.py`，并校验 `fetchedAt` 确实内联进 HTML，再把产物和两个 JSON 一起提交——「clone 下来双击」和线上是同一份数据。
 3. 重建完顺手跑 `smoke/narrow.js`：产物刚生成，正好验证 320 / 360 / 518 / 768 四档在说明块收起与展开两态都不横向溢出。浏览器路径由 `smoke/browser.js` 跨平台解析（本机 Edge、CI 上 runner 预装的 Chrome，Linux 自动补 `--no-sandbox`）；runner 换镜像没装浏览器时只告警跳过，不因环境问题让探活整条变红。`push.paths` 已覆盖 `assets/**`、`smoke/**`、`build.py`，改了样式或 harness 会立刻触发一次验证。
+4. `pages.yml` 用 `concurrency: pages`（`cancel-in-progress: false`），同一时间只留一个发布在排队。手动 push 触发的发布若还没轮到，probe 提交后显式派发的那次会把它顶掉——GitHub 把被顶掉的 run 标成 `failure` 且**一个 job 都没有**，看着像构建挂了，其实只是排队请求被替换。区分方法：查 Actions API 的 `jobs.total_count`，为 0 就是排队替换、不是代码故障；单独再触发一次发布即可，站点以最新一次成功部署为准。
 
 
 
