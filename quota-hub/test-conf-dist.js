@@ -379,13 +379,12 @@ ok('其它条件本来就是「全部」时不谎报重置', () => {
   eq(s.st.jointFocus.cleared.length, 0);
 });
 
-ok('残缺入参回落到 all，不把 undefined 写进筛选', () => {
+ok('残缺入参回落到 all，不把 undefined 写进筛选，也不留半截组合', () => {
   const s = focusSandbox();
   s.focus();
   eq(s.st.filters.cc, 'all');
   eq(s.st.filters.conf, 'all');
-  eq(s.st.jointFocus.cc, 'all');
-  eq(s.st.jointFocus.conf, 'all');
+  eq(s.st.jointFocus, null);          /* 组合不完整就不该挂面包屑 */
 });
 
 ok('第二次点格子覆盖上一次的组合，不叠加', () => {
@@ -395,6 +394,122 @@ ok('第二次点格子覆盖上一次的组合，不叠加', () => {
   eq(s.st.jointFocus.cc, 'conflict');
   eq(s.st.jointFocus.conf, 'disputed');
   eq(s.st.jointFocus.cleared.length, 0);
+});
+
+/* ============================================================
+   组合 ⇄ URL hash
+   分享链接的价值全在「打开后和发出去时一模一样」：条数、面包屑、
+   被重置的条件都得对上，否则不如让人截图。
+   ============================================================ */
+ok('5 × 3 组合全部可逆：hash 写出去能原样读回来', () => {
+  C.CONF_CC_ROWS.forEach(r => C.CONF_META.forEach(m => {
+    const h = C.confJointHash(r.cc, m.key);
+    assert(h, r.cc + '|' + m.key + ' 生成不了链接');
+    const p = C.confParseHash(h);
+    eq(p.joint, true, h);
+    eq(p.cc, r.cc, h);
+    eq(p.conf, m.key, h);
+    eq(p.view, 'registry', h);
+  }));
+});
+
+ok('hash 用 cc.conf 拼接，四个合法取值不会互相撞车', () => {
+  const seen = new Set();
+  C.CONF_CC_ROWS.forEach(r => C.CONF_META.forEach(m => {
+    const h = C.confJointHash(r.cc, m.key);
+    assert(!seen.has(h), '重复链接 ' + h);
+    seen.add(h);
+    assert(/^#registry\/jf=[a-z]+\.[a-z]+$/.test(h), h);
+  }));
+  eq(seen.size, 15);
+});
+
+ok('非法组合不生成链接（不许出现打不开的地址）', () => {
+  eq(C.confJointHash('all', 'all'), null);
+  eq(C.confJointHash('bogus', 'verified'), null);
+  eq(C.confJointHash('gap', 'verified'), null);      /* gap 已并入 pending */
+  eq(C.confJointHash(null, null), null);
+  eq(C.confJointHash('solo', undefined), null);
+});
+
+ok('解析容忍前导 # / 多余斜杠 / 大小写 / 省略视图', () => {
+  const want = { cc: 'none', conf: 'verified', joint: true };
+  [
+    '#registry/jf=none.verified',
+    'registry/jf=none.verified',
+    '#registry//jf=none.verified/',
+    '##registry/jf=none.verified',
+    '#Registry/jf=none.verified'
+  ].forEach(h => {
+    const p = C.confParseHash(h);
+    eq(p.cc, want.cc, h);
+    eq(p.conf, want.conf, h);
+    eq(p.joint, true, h);
+  });
+  const noView = C.confParseHash('#jf=agree.disputed');
+  eq(noView.view, 'registry');       /* 只有组合没写视图，默认落到平台库 */
+  eq(noView.joint, true);
+});
+
+ok('普通视图链接行为不变（不能因为加了 jf 就解析不出视图）', () => {
+  ['overview', 'registry', 'crosscheck', 'wallet', 'schedule'].forEach(v => {
+    const p = C.confParseHash('#' + v);
+    eq(p.view, v);
+    eq(p.joint, false);
+    eq(p.cc, null);
+    eq(p.conf, null);
+  });
+});
+
+ok('坏链接退化成「无组合」，绝不带进半截筛选态', () => {
+  ['#registry/jf=bogus.nope', '#registry/jf=none', '#registry/jf=.verified',
+   '#registry/jf=none.', '#registry/jf=none.verified.extra', '#registry/jf='].forEach(h => {
+    const p = C.confParseHash(h);
+    eq(p.joint, false, h);
+    eq(p.cc, null, h);
+    eq(p.conf, null, h);
+  });
+  /* 非法百分号编码不能抛（复制粘贴时经常被截断） */
+  eq(C.confParseHash('#registry/jf=%E0%A4%A.verified').joint, false);
+  eq(C.confParseHash(undefined).joint, false);
+  eq(C.confParseHash(null).view, null);
+});
+
+ok('深链与点格子落到完全一致的状态（含重置项与面包屑）', () => {
+  const base = () => ({
+    search: 'kimi',
+    filters: { region: 'cn', cat: 'api', qtype: 'daily', cc: 'all', conf: 'all' }
+  });
+  const link = base();
+  const click = base();
+  const p = C.confParseHash(C.confJointHash('none', 'verified'));
+  C.confApplyJoint(link, p.cc, p.conf);
+  const F = {};
+  new Function('state', 'saveUI', 'switchView', 'exports',
+    ['crosscheck.js', 'confidence.js']
+      .map(f => fs.readFileSync(path.join(__dirname, 'assets', f), 'utf8')).join('\n') +
+    '\n;Object.assign(exports,{confFocusCross});')(click, () => {}, () => {}, F);
+  F.confFocusCross('none', 'verified');
+  eq(JSON.stringify(link), JSON.stringify(click));
+  eq(link.jointFocus.cleared.join('/'), '区域/类型/额度形态/搜索');
+});
+
+ok('分享链接还原的条数与矩阵格子一致（15 格逐一核对）', () => {
+  const j = H.confJoint(d.PLATFORMS);
+  j.rows.forEach(r => j.cols.forEach((c, i) => {
+    const p = C.confParseHash(C.confJointHash(r.cc, c.key));
+    eq(H.confJointHits(d.PLATFORMS, p.cc, p.conf).length, r.cells[i],
+      r.label + ' × ' + c.label + ' 的链接还原不出同样条数');
+  }));
+});
+
+ok('confApplyJoint：非法组合不动 state（免得出现改了筛选却没面包屑）', () => {
+  const st = { search: 'x', filters: { region: 'cn', cc: 'all', conf: 'all' } };
+  eq(C.confApplyJoint(st, 'bogus', 'verified'), null);
+  eq(st.filters.region, 'cn');
+  eq(st.search, 'x');
+  eq(st.jointFocus, undefined);
+  eq(C.confApplyJoint(null, 'none', 'verified'), null);
 });
 
 console.log(`\n可信度分布单测：${pass} 通过 / ${fail} 失败`);

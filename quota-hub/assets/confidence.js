@@ -195,23 +195,36 @@ function confJointHits(platforms, ccVal, confVal) {
     && (typeof ccFilterMatch === 'function' ? ccFilterMatch(p.id, ccVal) : true));
 }
 
-/* 点格子：两个筛选一起套上，再跳到平台库看结果。
-   同时把其它维度（区域 / 类型 / 额度形态 / 搜索）清掉 —— 矩阵是按全库统计的，
-   留着旧条件会让「格子写 10 条、结果只有 3 条」对不上账。清了哪些记进
-   jointFocus.cleared，平台库那条面包屑会如实说明，不是偷偷改用户条件。 */
-function confFocusCross(ccVal, confVal) {
-  const cc = ccVal || 'all';
-  const cf = confVal || 'all';
+/* 把组合落到 state：两个筛选设上、其它维度清掉、记下被清掉的项。
+   矩阵按全库统计，留着旧的区域 / 类型 / 搜索会让「格子写 10 条、结果只有
+   3 条」对不上账 —— 清了什么写进 jointFocus.cleared，面包屑如实说明，
+   不是偷偷改用户条件。组合非法时返回 null，绝不写半截状态。 */
+function confApplyJoint(st, ccVal, confVal) {
+  if (!st || typeof st !== 'object' || !st.filters) return null;
+  const combo = confJointCombo(ccVal, confVal);
+  if (!combo) return null;
+  const NAMES = { region: '区域', cat: '类型', qtype: '额度形态' };
   const cleared = [];
+  Object.keys(NAMES).forEach(k => {
+    if (st.filters[k] && st.filters[k] !== 'all') { cleared.push(NAMES[k]); st.filters[k] = 'all'; }
+  });
+  if (st.search) { cleared.push('搜索'); st.search = ''; }
+  st.filters.cc = combo.cc;
+  st.filters.conf = combo.conf;
+  st.jointFocus = { cc: combo.cc, conf: combo.conf, cleared };
+  return st.jointFocus;
+}
+
+/* 点格子：套组合 → 跳平台库。深链与点击共用 confApplyJoint，两条路
+   落到的状态必须完全一样，否则「分享出去的链接打开后条数不同」。 */
+function confFocusCross(ccVal, confVal) {
+  const applied = (typeof state === 'object' && state) ? confApplyJoint(state, ccVal, confVal) : null;
   if (typeof state === 'object' && state && state.filters) {
-    const NAMES = { region: '区域', cat: '类型', qtype: '额度形态' };
-    ['region', 'cat', 'qtype'].forEach(k => {
-      if (state.filters[k] && state.filters[k] !== 'all') { cleared.push(NAMES[k]); state.filters[k] = 'all'; }
-    });
-    if (state.search) { cleared.push('搜索'); state.search = ''; }
-    state.filters.cc = cc;
-    state.filters.conf = cf;
-    state.jointFocus = { cc, conf: cf, cleared };
+    if (!applied) {          /* 残缺入参：清回默认，别留半截组合让面包屑对不上 */
+      state.filters.cc = 'all';
+      state.filters.conf = 'all';
+      state.jointFocus = null;
+    }
     if (typeof saveUI === 'function') saveUI();
   }
   if (typeof document !== 'undefined') {
@@ -230,10 +243,51 @@ function confFocusCross(ccVal, confVal) {
   }
 }
 
+/* ============================================================
+   组合 ⇄ URL hash
+   ------------------------------------------------------------
+   组合本身只活在内存里，一刷新就没了 —— 想把它发给同事（「这三家
+   冲突且单源，你看看」）只能靠截图。写成 #registry/jf=solo.reported
+   之后，地址栏本身就是那个格子：复制即分享，打开即还原。
+
+   格式约定：
+     #<view>               普通的视图地址（原有行为不变）
+     #<view>/jf=<cc>.<conf> 带矩阵组合；cc / conf 取值都是纯字母，
+                            用 . 分隔不会和别的片段撞上
+   ============================================================ */
+
+const CONF_HASH_VIEW = /^[a-z][a-z0-9_-]{0,20}$/i;
+
+/* 组合 → hash。cc / conf 不是合法组合时返回 null，由调用方回落成 #view，
+   免得生成 #registry/jf=bogus.undefined 这种打不开的链接。 */
+function confJointHash(ccVal, confVal, view) {
+  const combo = confJointCombo(ccVal, confVal);
+  if (!combo) return null;
+  return '#' + (view || 'registry') + '/jf=' + combo.cc + '.' + combo.conf;
+}
+
+/* hash → { view, cc, conf, joint }。
+   容错原则：坏链接只能退化成「没有组合」，绝不能把页面带进半截筛选态
+   （筛选已改、面包屑不显示是最难解释的状态）。 */
+function confParseHash(hash) {
+  const raw = String(hash == null ? '' : hash).replace(/^#+/, '').trim();
+  const first = raw.split('/')[0] || '';
+  const view = CONF_HASH_VIEW.test(first) ? first.toLowerCase() : null;
+  const m = /(?:^|\/)jf=([^./]{1,24})\.([^./]{1,24})(?:\/|$)/.exec(raw);
+  if (m) {
+    let a = m[1], b = m[2];
+    try { a = decodeURIComponent(a); b = decodeURIComponent(b); } catch (e) { a = ''; b = ''; }
+    const combo = confJointCombo(a, b);
+    if (combo) return { view: view || 'registry', cc: combo.cc, conf: combo.conf, joint: true };
+  }
+  return { view, cc: null, conf: null, joint: false };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CONF_META, CONF_FILTERS, CONF_CC_ROWS,
     confBreakdown, confFilterMatch, confBarHtml,
-    confJoint, confJointHtml, confJointCombo, confJointHits, confFocusCross
+    confJoint, confJointHtml, confJointCombo, confJointHits,
+    confApplyJoint, confFocusCross, confJointHash, confParseHash
   };
 }

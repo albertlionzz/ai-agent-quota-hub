@@ -771,6 +771,9 @@ tr.cc-focus { background: var(--blue-soft) !important; }
 .jf-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 .jf-btn.jf-x { color: var(--ink-2); border-color: var(--line); }
 .jf-btn.jf-x:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+.jf-btn.jf-copy { color: var(--ink-2); border-color: var(--line); }
+.jf-btn.jf-copy:not([disabled]):hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.jf-btn[disabled] { opacity: .72; cursor: default; }
 .jf-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .pcard.jf-hit {

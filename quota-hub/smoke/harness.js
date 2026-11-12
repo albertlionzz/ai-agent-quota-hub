@@ -542,6 +542,16 @@
         !!jfBar && /已重置区域/.test(txt(jfBar)),
         jfBar ? txt(jfBar).replace(/\s+/g, ' ').slice(0, 80) : 'missing');
 
+      /* ---------- 组合写进 URL hash：地址栏就是那个格子 ---------- */
+      add('点格子后地址栏带上组合（#registry/jf=none.verified）',
+        location.hash === '#registry/jf=none.verified', location.hash);
+      var copyBtn = q('#jf-copy');
+      add('面包屑提供「复制链接」', !!copyBtn && /复制链接/.test(txt(copyBtn)),
+        copyBtn ? txt(copyBtn) : 'missing');
+      /* 点一下：剪贴板在无头环境可能被拒，这里只验「点了不炸」——
+         真出错会落进 R.errors，末尾的「无运行时错误」会红 */
+      if (copyBtn) copyBtn.click();
+
       /* 回矩阵：走面包屑上的按钮，确认组合态能来回 */
       var back = q('#jf-back');
       add('面包屑提供「回矩阵」', !!back);
@@ -549,6 +559,7 @@
       var actBack = q('.view.active');
       add('「回矩阵」回到交叉校验', !!actBack && actBack.id === 'view-crosscheck',
         actBack ? actBack.id : 'none');
+      add('回矩阵后地址栏不再残留组合', location.hash === '#crosscheck', location.hash);
       add('矩阵统计不随自身筛选收缩（仍 48 条）',
         /共\s*48\s*条/.test(txt(q('#view-crosscheck .cc-joint'))),
         txt(q('#view-crosscheck .cc-joint')).replace(/\s+/g, ' ').slice(0, 40));
@@ -572,6 +583,7 @@
       add('退出后面包屑收起', q('#joint-focus').hidden === true);
       add('退出后卡片不再带高亮', qa('#platform-grid .pcard.jf-hit').length === 0,
         qa('#platform-grid .pcard.jf-hit').length);
+      add('退出后地址栏回到干净的 #registry', location.hash === '#registry', location.hash);
       var ccNow = q('#filter-bar .fbtn.on[data-g="cc"]');
       add('退出后交叉校验筛选回到「全部」',
         !!ccNow && ccNow.getAttribute('data-v') === 'all',
@@ -696,7 +708,47 @@
     add('复位后回到 48 个结果', num(txt(q('#result-count'))) === 48, txt(q('#result-count')));
   }
 
-  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s22, s23, s24, s16, s17];
+  /* ---------- 25~27. 分享链接：直接改地址栏也要还原成同一个格子 ----------
+     深链与点格子共用 confApplyJoint，这里测的是「打开别人发来的链接」
+     那条路：hash 一变，视图、两个筛选、面包屑、命中高亮都得跟上。
+     分步是因为 hashchange 是异步事件，同步断言会读到旧状态。 */
+  function s25() {
+    location.hash = '#registry/jf=solo.reported';
+  }
+  function s26() {
+    var view = q('.view.active');
+    add('深链还原到平台库', !!view && view.id === 'view-registry', view ? view.id : 'none');
+    add('深链还原组合条数（仅本项目 × 单源 = 7 条）',
+      num(txt(q('#result-count'))) === 7, txt(q('#result-count')));
+    var bar = q('#joint-focus');
+    add('深链还原面包屑组合',
+      !!bar && bar.hidden === false && bar.getAttribute('data-jf') === 'solo|reported',
+      bar ? bar.getAttribute('data-jf') + ' hidden=' + bar.hidden : 'missing');
+    add('深链还原组合文案',
+      !!bar && /仅本项目/.test(txt(bar)) && /单源报道/.test(txt(bar)),
+      bar ? txt(bar).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
+    add('深链后命中卡片全部高亮',
+      qa('#platform-grid .pcard[data-jf-hit="1"]').length === 7,
+      qa('#platform-grid .pcard[data-jf-hit="1"]').length);
+    var onCc = q('#filter-bar .fbtn.on[data-g="cc"]');
+    var onCf = q('.cd-key.on[data-conf]');
+    add('深链后两个筛选都落在该档',
+      !!onCc && onCc.getAttribute('data-v') === 'solo' &&
+      !!onCf && onCf.getAttribute('data-conf') === 'reported',
+      (onCc ? onCc.getAttribute('data-v') : '?') + '|' + (onCf ? onCf.getAttribute('data-conf') : '?'));
+
+    location.hash = '#registry/jf=bogus.nope';   /* 下一步验坏链接的退化 */
+  }
+  function s27() {
+    var bar = q('#joint-focus');
+    add('坏链接不挂面包屑（退化成普通平台库）', !!bar && bar.hidden === true);
+    add('坏链接不改动用户已有筛选（不静默重置）', num(txt(q('#result-count'))) === 7,
+      txt(q('#result-count')));
+    add('坏链接不把地址栏改坏（保留原 hash）',
+      location.hash === '#registry/jf=bogus.nope', location.hash);
+  }
+
+  var steps = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s18, s19, s20, s21, s22, s23, s24, s16, s17, s25, s26, s27];
   var i = 0;
   function next() {
     if (i >= steps.length) return finish();

@@ -28,8 +28,9 @@
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
     filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }, ui.filters || {}),
-    /* 从联合分布矩阵某格跳过来的组合（cc / conf / cleared）。只活在本视图内，
-       故意不进 saveUI：刷新页面还挂着「矩阵选中」会比丢掉它更让人困惑。 */
+    /* 从联合分布矩阵某格跳过来的组合（cc / conf / cleared）。不进 saveUI：
+       刷新还挂着「矩阵选中」比丢掉它更让人困惑。但它会写进 URL hash ——
+       地址栏里看得见、复制出去能还原，属于用户显式持有的状态。 */
     jointFocus: null,
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
@@ -344,6 +345,7 @@
         });
         saveUI();
         renderRegistry();
+        syncHash();          /* 组合被手动改掉，链接里的 jf= 也得跟着消失 */
       });
     }
 
@@ -378,7 +380,8 @@
             · 共 <b>${hitsN}</b> 条${drift}${clearedTxt}</span>
           <span class="jf-note">${esc(jf.rowNote)}</span>
           <button type="button" class="jf-btn" id="jf-back">← 回矩阵</button>
-          <button type="button" class="jf-btn jf-x" id="jf-clear">退出组合筛选</button>`;
+          <button type="button" class="jf-btn jf-x" id="jf-clear">退出组合筛选</button>
+          <button type="button" class="jf-btn jf-copy" id="jf-copy" title="复制这一组合的直达链接">复制链接</button>`;
         $('#jf-back').addEventListener('click', () => {
           state.jointFocus = null;
           if (typeof switchView === 'function') switchView('crosscheck');
@@ -389,6 +392,38 @@
           state.filters.conf = 'all';
           saveUI();
           renderRegistry();
+          syncHash();
+        });
+        /* 复制直达链接：矩阵组合已经写进 hash，location.href 就是那个格子。
+           clipboard 在 file:// 或非安全上下文可能被拒，退回 execCommand。 */
+        $('#jf-copy').addEventListener('click', async ev => {
+          const btn = ev.currentTarget;
+          const text = location.href;
+          const done = okCopy => {
+            btn.textContent = okCopy ? '已复制' : '请复制地址栏';
+            btn.disabled = okCopy;
+            if (okCopy) setTimeout(() => { btn.textContent = '复制链接'; btn.disabled = false; }, 1600);
+          };
+          let ok = false;
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+              ok = true;
+            }
+          } catch (e) { ok = false; }
+          if (!ok) {
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = text;
+              ta.setAttribute('readonly', '');
+              ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0';
+              document.body.appendChild(ta);
+              ta.select();
+              ok = document.execCommand('copy');
+              document.body.removeChild(ta);
+            } catch (e) { ok = false; }
+          }
+          done(ok);
         });
       } else {
         jfBox.hidden = true;
@@ -1071,6 +1106,20 @@
     crosscheck: { title: '交叉校验', sub: '多来源口径比对', render: renderCrosscheck }
   };
 
+  /* 视图 → hash。平台库还挂着「矩阵组合」时把组合一起写进去，这样
+     地址栏里那条链接发出去能直达同一组结果，而不是只到平台库页面。 */
+  function viewHash(v) {
+    if (v === 'registry' && state.jointFocus && typeof confJointHash === 'function') {
+      const h = confJointHash(state.jointFocus.cc, state.jointFocus.conf, 'registry');
+      if (h) return h;
+    }
+    return '#' + v;
+  }
+
+  function syncHash(v) {
+    try { history.replaceState(null, '', viewHash(v || state.view)); } catch (e) {}
+  }
+
   function switchView(v) {
     if (!VIEWS[v]) return;
     state.view = v;
@@ -1080,8 +1129,8 @@
     $('#page-sub').textContent = VIEWS[v].sub;
     VIEWS[v].render();
     saveUI();
-    /* 可分享 / 可书签的视图地址；replaceState 在 file:// 下可能受限，忽略失败 */
-    try { history.replaceState(null, '', '#' + v); } catch (e) {}
+    /* 可分享 / 可书签的地址；replaceState 在 file:// 下可能受限，忽略失败 */
+    syncHash(v);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1146,7 +1195,7 @@
         state.search = e.target.value;
         state.jointFocus = null;      /* 自己搜了就别再挂着矩阵选中态 */
         if (state.view !== 'registry') switchView('registry');
-        else { renderRegistry(); saveUI(); }
+        else { renderRegistry(); saveUI(); syncHash(); }
       });
     }
 
@@ -1155,10 +1204,36 @@
       if (e.key === 'Escape') closeDrawer();
     });
 
-    /* 优先级：URL hash（可分享链接） > 上次停留的视图 > 总览 */
-    const hash = (location.hash || '').replace('#', '');
-    const initial = hash || (VIEWS[ui.view] ? ui.view : '');
+    /* 优先级：URL hash（可分享链接，可带矩阵组合） > 上次停留的视图 > 总览 */
+    const boot = typeof confParseHash === 'function'
+      ? confParseHash(location.hash) : { view: null, joint: false };
+    if (boot.joint && typeof confApplyJoint === 'function') {
+      /* 深链要和「点格子」落到完全一致的状态：同一套清维度逻辑，同一份
+         面包屑（cleared 也照实记），否则分享出去的和打开后看到的不是一回事 */
+      confApplyJoint(state, boot.cc, boot.conf);
+      const se0 = $('#search');
+      if (se0) se0.value = '';
+    }
+    const initial = boot.view || (VIEWS[ui.view] ? ui.view : '');
     switchView(VIEWS[initial] ? initial : 'overview');
+
+    /* 地址栏被手动改 / 从别的链接跳进来：按 hash 重新落状态。
+       自己写 hash 用的是 replaceState，不会触发 hashchange，没有回环风险。 */
+    window.addEventListener('hashchange', () => {
+      const p = typeof confParseHash === 'function'
+        ? confParseHash(location.hash) : { view: null, joint: false };
+      if (p.joint && typeof confApplyJoint === 'function') {
+        confApplyJoint(state, p.cc, p.conf);
+        const se = $('#search');
+        if (se) se.value = '';
+        if (state.view !== 'registry') switchView('registry');
+        else { saveUI(); renderRegistry(); }
+        return;
+      }
+      state.jointFocus = null;
+      if (p.view && VIEWS[p.view] && p.view !== state.view) switchView(p.view);
+      else if (state.view === 'registry') { saveUI(); renderRegistry(); }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', init);
