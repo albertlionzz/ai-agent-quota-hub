@@ -751,6 +751,54 @@ tr.cc-focus { background: var(--blue-soft) !important; }
   .cd-clear { margin-left: 0; }
 }
 
+/* --- 从联合分布矩阵点格子跳过来：组合面包屑 + 命中卡片描边 ---
+   光把列表收窄成 N 条不够，得说清「为什么是这 N 条」：面包屑写明
+   判定 × 可信度、条数、被重置掉的其它条件；命中的卡片加一圈描边，
+   滚到长列表中段也知道自己在看哪一组。 */
+.jf-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 12px 0 0; padding: 9px 12px; min-width: 0;
+  background: var(--accent-soft); border: 1px solid rgba(47,95,224,.2);
+  border-left: 3px solid var(--accent); border-radius: var(--r);
+  font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere;
+}
+.jf-bar[hidden] { display: none; }
+.jf-ic { color: var(--accent); font-size: 13px; line-height: 1; flex: 0 0 auto; }
+.jf-txt { min-width: 0; }
+.jf-txt b { color: var(--ink); font-weight: 650; }
+.jf-bar em { font-style: normal; color: var(--ink-3); }
+.jf-note { font-size: 11px; color: var(--ink-3); min-width: 0; }
+.jf-btn {
+  flex: 0 0 auto; padding: 4px 9px; font: inherit; font-size: 11px;
+  color: var(--accent); background: var(--card);
+  border: 1px solid rgba(47,95,224,.28); border-radius: 6px;
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.jf-btn:first-of-type { margin-left: auto; }
+.jf-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.jf-btn.jf-x { color: var(--ink-2); border-color: var(--line); }
+.jf-btn.jf-x:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+.jf-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pcard.jf-hit {
+  border-color: rgba(47,95,224,.5);
+  box-shadow: 0 0 0 2px rgba(47,95,224,.14), var(--shadow);
+  animation: jf-pop .6s ease-out 1;
+}
+.pcard.jf-hit:hover { box-shadow: 0 0 0 2px rgba(47,95,224,.2), var(--shadow-h); }
+@keyframes jf-pop {
+  from { box-shadow: 0 0 0 4px rgba(47,95,224,.4), var(--shadow-h); }
+  to   { box-shadow: 0 0 0 2px rgba(47,95,224,.14), var(--shadow); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pcard.jf-hit { animation: none; }
+}
+@media (max-width: 520px) {
+  .jf-bar { padding: 8px 10px; gap: 5px 8px; }
+  .jf-note { display: none; }          /* 窄屏先让位给组合与按钮 */
+  .jf-btn:first-of-type { margin-left: 0; }
+}
+
 /* --- 接入核验卡片里的外部证据块 --- */
 .vcc {
   margin-top: 9px; padding: 10px 12px; border-radius: 7px;
@@ -2418,6 +2466,7 @@ kbd,
     <section class="view" id="view-registry">
       <div class="filters" id="filter-bar"></div>
       <div class="conf-dist" id="conf-dist"></div>
+      <div class="jf-bar" id="joint-focus" hidden></div>
       <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 10px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--ink-3)">共 <b id="result-count" style="color:var(--ink);font-family:var(--mono)">0</b> 个结果 · 点击卡片看详情</span>
         <span id="cc-cover" style="font-size:12px;color:var(--ink-3);margin-left:auto"></span>
@@ -3716,6 +3765,9 @@ const DEFAULT_WALLET = {
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
     filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }, ui.filters || {}),
+    /* 从联合分布矩阵某格跳过来的组合（cc / conf / cleared）。只活在本视图内，
+       故意不进 saveUI：刷新页面还挂着「矩阵选中」会比丢掉它更让人困惑。 */
+    jointFocus: null,
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -4022,6 +4074,8 @@ const DEFAULT_WALLET = {
         const b = e.target.closest('.fbtn');
         if (!b) return;
         state.filters[b.dataset.g] = b.dataset.v;
+        /* 手动改条件即退出「矩阵选中」态：否则面包屑和卡片高亮会跟结果对不上 */
+        state.jointFocus = null;
         $$('.fbtn', $('#filter-bar')).forEach(x => {
           if (x.dataset.g === b.dataset.g) x.classList.toggle('on', x === b);
         });
@@ -4039,6 +4093,47 @@ const DEFAULT_WALLET = {
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
+    /* ---------- 「矩阵选中」面包屑 + 命中卡片高亮 ----------
+       点格子后列表已经被收成那一格，但「为什么是这 N 条」得说清楚：
+       面包屑写明组合、条数、以及被重置掉的其它条件；命中的卡片加一圈描边，
+       滚动长列表时也不会看丢。手动改任何筛选即退出该态。 */
+    const jf = (state.jointFocus && typeof confJointCombo === 'function')
+      ? confJointCombo(state.jointFocus.cc, state.jointFocus.conf) : null;
+    const hitSet = jf ? new Set(confJointHits(PLATFORMS, jf.cc, jf.conf).map(p => p.id)) : null;
+    const jfBox = $('#joint-focus');
+    if (jfBox) {
+      if (jf) {
+        const hitsN = hitSet.size;
+        const drift = hitsN !== list.length
+          ? ` · <em>当前筛选显示 ${list.length} 条</em>` : '';
+        const clearedTxt = (state.jointFocus.cleared || []).length
+          ? ` · <em>已重置${state.jointFocus.cleared.join(' / ')}筛选</em>` : '';
+        jfBox.hidden = false;
+        jfBox.setAttribute('data-jf', `${jf.cc}|${jf.conf}`);
+        jfBox.innerHTML = `<span class="jf-ic" aria-hidden="true">◎</span>
+          <span class="jf-txt">来自<b>联合分布</b>：<b>${esc(jf.rowLabel)}</b> × <b>${esc(jf.colLabel)}</b>
+            · 共 <b>${hitsN}</b> 条${drift}${clearedTxt}</span>
+          <span class="jf-note">${esc(jf.rowNote)}</span>
+          <button type="button" class="jf-btn" id="jf-back">← 回矩阵</button>
+          <button type="button" class="jf-btn jf-x" id="jf-clear">退出组合筛选</button>`;
+        $('#jf-back').addEventListener('click', () => {
+          state.jointFocus = null;
+          if (typeof switchView === 'function') switchView('crosscheck');
+        });
+        $('#jf-clear').addEventListener('click', () => {
+          state.jointFocus = null;
+          state.filters.cc = 'all';
+          state.filters.conf = 'all';
+          saveUI();
+          renderRegistry();
+        });
+      } else {
+        jfBox.hidden = true;
+        jfBox.removeAttribute('data-jf');
+        jfBox.innerHTML = '';
+      }
+    }
+
     /* 可信度分布条：统计用 basePlatforms()（排除 conf 自身），
        所以点选某一档后仍看得到完整分布；每次重绘按 state 重刷高亮。 */
     const confBox = $('#conf-dist');
@@ -4047,6 +4142,7 @@ const DEFAULT_WALLET = {
       confBox.querySelectorAll('[data-conf]').forEach(b => {
         b.addEventListener('click', () => {
           state.filters.conf = b.dataset.conf;
+          state.jointFocus = null;
           saveUI();
           renderRegistry();
         });
@@ -4106,12 +4202,13 @@ const DEFAULT_WALLET = {
 
     $('#platform-grid').innerHTML = list.map(p => {
       const qt = QUOTA_TYPES[p.quotaType];
+      const hit = !!(hitSet && hitSet.has(p.id));
       const flags = [
         p.needsCard ? '' : `<span class="ital" title="无需信用卡">免卡</span>`,
         p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
         typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
-      return `<div class="pcard" data-id="${p.id}" data-conf="${esc(p.confidence)}">
+      return `<div class="pcard${hit ? ' jf-hit' : ''}" data-id="${p.id}" data-conf="${esc(p.confidence)}"${hit ? ' data-jf-hit="1"' : ''}>
         <div class="pcard-top">
           <div style="min-width:0">
             <div class="pcard-name">${esc(p.name)}</div>
@@ -11161,21 +11258,66 @@ function confJointHtml(joint, curCc, curConf) {
       所以选中格子后仍看得到全貌。</p>`;
 }
 
-/* 点格子：两个筛选一起套上，再跳到平台库看结果 */
+/* 把 cc|conf 还原成可读文案；值不合法返回 null（矩阵高亮、面包屑都靠它） */
+function confJointCombo(ccVal, confVal) {
+  const row = CONF_CC_ROWS.find(r => r.cc === ccVal || r.key === ccVal);
+  const col = CONF_META.find(m => m.key === confVal);
+  if (!row || !col) return null;
+  return {
+    cc: row.cc, rowLabel: row.label, rowNote: row.note,
+    conf: col.key, colLabel: col.label, colShort: col.short || col.label, cls: col.cls
+  };
+}
+
+/* 格子里的 N 条在平台库里是哪几条。与 confJoint 的统计口径必须一致：
+   有 id 走 ccVerdictOf，没 id 的按「未覆盖」处理；可信度有效的才进格子。 */
+function confJointHits(platforms, ccVal, confVal) {
+  const list = Array.isArray(platforms) ? platforms : [];
+  return list.filter(p => !!p
+    && confFilterMatch(p, confVal)
+    && (typeof ccFilterMatch === 'function' ? ccFilterMatch(p.id, ccVal) : true));
+}
+
+/* 点格子：两个筛选一起套上，再跳到平台库看结果。
+   同时把其它维度（区域 / 类型 / 额度形态 / 搜索）清掉 —— 矩阵是按全库统计的，
+   留着旧条件会让「格子写 10 条、结果只有 3 条」对不上账。清了哪些记进
+   jointFocus.cleared，平台库那条面包屑会如实说明，不是偷偷改用户条件。 */
 function confFocusCross(ccVal, confVal) {
+  const cc = ccVal || 'all';
+  const cf = confVal || 'all';
+  const cleared = [];
   if (typeof state === 'object' && state && state.filters) {
-    state.filters.cc = ccVal || 'all';
-    state.filters.conf = confVal || 'all';
+    const NAMES = { region: '区域', cat: '类型', qtype: '额度形态' };
+    ['region', 'cat', 'qtype'].forEach(k => {
+      if (state.filters[k] && state.filters[k] !== 'all') { cleared.push(NAMES[k]); state.filters[k] = 'all'; }
+    });
+    if (state.search) { cleared.push('搜索'); state.search = ''; }
+    state.filters.cc = cc;
+    state.filters.conf = cf;
+    state.jointFocus = { cc, conf: cf, cleared };
     if (typeof saveUI === 'function') saveUI();
   }
+  if (typeof document !== 'undefined') {
+    const se = document.getElementById('search');
+    if (se) se.value = '';
+  }
   if (typeof switchView === 'function') switchView('registry');
+  /* 矩阵常被滚到页首之外，落点要主动带一下，否则跳过去只看到筛选条 */
+  if (typeof document !== 'undefined' && typeof setTimeout === 'function') {
+    setTimeout(() => {
+      const box = document.getElementById('joint-focus');
+      if (box && box.scrollIntoView) {
+        try { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+      }
+    }, 120);
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CONF_META, CONF_FILTERS, CONF_CC_ROWS,
     confBreakdown, confFilterMatch, confBarHtml,
-    confJoint, confJointHtml, confFocusCross
+    confJoint, confJointHtml, confJointCombo, confJointHits, confFocusCross
   };
 }
 
@@ -11510,6 +11652,7 @@ function initPalette() {
       searchEl.value = state.search;
       searchEl.addEventListener('input', e => {
         state.search = e.target.value;
+        state.jointFocus = null;      /* 自己搜了就别再挂着矩阵选中态 */
         if (state.view !== 'registry') switchView('registry');
         else { renderRegistry(); saveUI(); }
       });

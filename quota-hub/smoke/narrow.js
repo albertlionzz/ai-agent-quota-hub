@@ -65,6 +65,20 @@ document.getElementById('f').addEventListener('load', function () {
         cardOverflow: jc ? jc.scrollWidth - jc.clientWidth : -1,
         cells: d.querySelectorAll('.cj-btn').length
       };
+      /* 点一格落到平台库：量面包屑与高亮卡片在窄屏有没有撑宽。
+         这里顺手验证「面包屑露出来 + 高亮张数 = 结果张数」，
+         窄屏最容易出的事就是这行说明把整页顶出横向滚动。 */
+      var cell0 = d.querySelector('.cj-btn');
+      if (cell0) cell0.click();
+      var jfb = d.getElementById('joint-focus');
+      out.focus = {
+        docScroll: d.documentElement.scrollWidth,
+        docClient: d.documentElement.clientWidth,
+        barOverflow: jfb ? jfb.scrollWidth - jfb.clientWidth : -1,
+        shown: jfb ? !jfb.hidden : false,
+        hits: d.querySelectorAll('#platform-grid .pcard.jf-hit').length,
+        cards: d.querySelectorAll('#platform-grid .pcard').length
+      };
     } catch (e) { out.error = e.message; }
     document.getElementById('__res__').textContent = JSON.stringify(out);
   }, 400);
@@ -115,6 +129,13 @@ WIDTHS.forEach(w => {
   ok('矩阵表格与卡片都无内部溢出', j.tableOverflow <= 1 && j.cardOverflow <= 1,
     'table ' + j.tableOverflow + ' / card ' + j.cardOverflow);
   ok('窄屏下矩阵仍渲染 11 个可点格子', j.cells === 11, j.cells);
+
+  const f = r.focus || {};
+  ok('点格子在窄屏也能落到平台库并露出面包屑', f.shown === true, f.shown);
+  ok('组合面包屑自身无横向溢出', f.barOverflow <= 1, f.barOverflow);
+  ok('落地后整页仍无横向溢出', f.docScroll <= f.docClient + 1, f.docScroll + '/' + f.docClient);
+  ok('高亮张数 = 结果张数（窄屏也没漏卡片）', f.hits > 0 && f.hits === f.cards,
+    f.hits + '/' + f.cards);
 });
 
 console.log('\n窄屏回归：' + pass + ' 通过 / ' + fail + ' 失败');

@@ -175,20 +175,65 @@ function confJointHtml(joint, curCc, curConf) {
       所以选中格子后仍看得到全貌。</p>`;
 }
 
-/* 点格子：两个筛选一起套上，再跳到平台库看结果 */
+/* 把 cc|conf 还原成可读文案；值不合法返回 null（矩阵高亮、面包屑都靠它） */
+function confJointCombo(ccVal, confVal) {
+  const row = CONF_CC_ROWS.find(r => r.cc === ccVal || r.key === ccVal);
+  const col = CONF_META.find(m => m.key === confVal);
+  if (!row || !col) return null;
+  return {
+    cc: row.cc, rowLabel: row.label, rowNote: row.note,
+    conf: col.key, colLabel: col.label, colShort: col.short || col.label, cls: col.cls
+  };
+}
+
+/* 格子里的 N 条在平台库里是哪几条。与 confJoint 的统计口径必须一致：
+   有 id 走 ccVerdictOf，没 id 的按「未覆盖」处理；可信度有效的才进格子。 */
+function confJointHits(platforms, ccVal, confVal) {
+  const list = Array.isArray(platforms) ? platforms : [];
+  return list.filter(p => !!p
+    && confFilterMatch(p, confVal)
+    && (typeof ccFilterMatch === 'function' ? ccFilterMatch(p.id, ccVal) : true));
+}
+
+/* 点格子：两个筛选一起套上，再跳到平台库看结果。
+   同时把其它维度（区域 / 类型 / 额度形态 / 搜索）清掉 —— 矩阵是按全库统计的，
+   留着旧条件会让「格子写 10 条、结果只有 3 条」对不上账。清了哪些记进
+   jointFocus.cleared，平台库那条面包屑会如实说明，不是偷偷改用户条件。 */
 function confFocusCross(ccVal, confVal) {
+  const cc = ccVal || 'all';
+  const cf = confVal || 'all';
+  const cleared = [];
   if (typeof state === 'object' && state && state.filters) {
-    state.filters.cc = ccVal || 'all';
-    state.filters.conf = confVal || 'all';
+    const NAMES = { region: '区域', cat: '类型', qtype: '额度形态' };
+    ['region', 'cat', 'qtype'].forEach(k => {
+      if (state.filters[k] && state.filters[k] !== 'all') { cleared.push(NAMES[k]); state.filters[k] = 'all'; }
+    });
+    if (state.search) { cleared.push('搜索'); state.search = ''; }
+    state.filters.cc = cc;
+    state.filters.conf = cf;
+    state.jointFocus = { cc, conf: cf, cleared };
     if (typeof saveUI === 'function') saveUI();
   }
+  if (typeof document !== 'undefined') {
+    const se = document.getElementById('search');
+    if (se) se.value = '';
+  }
   if (typeof switchView === 'function') switchView('registry');
+  /* 矩阵常被滚到页首之外，落点要主动带一下，否则跳过去只看到筛选条 */
+  if (typeof document !== 'undefined' && typeof setTimeout === 'function') {
+    setTimeout(() => {
+      const box = document.getElementById('joint-focus');
+      if (box && box.scrollIntoView) {
+        try { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+      }
+    }, 120);
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CONF_META, CONF_FILTERS, CONF_CC_ROWS,
     confBreakdown, confFilterMatch, confBarHtml,
-    confJoint, confJointHtml, confFocusCross
+    confJoint, confJointHtml, confJointCombo, confJointHits, confFocusCross
   };
 }

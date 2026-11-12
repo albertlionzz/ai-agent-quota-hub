@@ -28,6 +28,9 @@
     view: 'overview',
     search: typeof ui.search === 'string' ? ui.search : '',
     filters: Object.assign({ region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }, ui.filters || {}),
+    /* 从联合分布矩阵某格跳过来的组合（cc / conf / cleared）。只活在本视图内，
+       故意不进 saveUI：刷新页面还挂着「矩阵选中」会比丢掉它更让人困惑。 */
+    jointFocus: null,
     route: { task: 'long-text', reqs: 200, inTok: 3000, outTok: 800 },
     wallet: loadWallet()
   };
@@ -334,6 +337,8 @@
         const b = e.target.closest('.fbtn');
         if (!b) return;
         state.filters[b.dataset.g] = b.dataset.v;
+        /* 手动改条件即退出「矩阵选中」态：否则面包屑和卡片高亮会跟结果对不上 */
+        state.jointFocus = null;
         $$('.fbtn', $('#filter-bar')).forEach(x => {
           if (x.dataset.g === b.dataset.g) x.classList.toggle('on', x === b);
         });
@@ -351,6 +356,47 @@
     const list = filteredPlatforms();
     $('#result-count').textContent = `${list.length} / ${PLATFORMS.length}`;
 
+    /* ---------- 「矩阵选中」面包屑 + 命中卡片高亮 ----------
+       点格子后列表已经被收成那一格，但「为什么是这 N 条」得说清楚：
+       面包屑写明组合、条数、以及被重置掉的其它条件；命中的卡片加一圈描边，
+       滚动长列表时也不会看丢。手动改任何筛选即退出该态。 */
+    const jf = (state.jointFocus && typeof confJointCombo === 'function')
+      ? confJointCombo(state.jointFocus.cc, state.jointFocus.conf) : null;
+    const hitSet = jf ? new Set(confJointHits(PLATFORMS, jf.cc, jf.conf).map(p => p.id)) : null;
+    const jfBox = $('#joint-focus');
+    if (jfBox) {
+      if (jf) {
+        const hitsN = hitSet.size;
+        const drift = hitsN !== list.length
+          ? ` · <em>当前筛选显示 ${list.length} 条</em>` : '';
+        const clearedTxt = (state.jointFocus.cleared || []).length
+          ? ` · <em>已重置${state.jointFocus.cleared.join(' / ')}筛选</em>` : '';
+        jfBox.hidden = false;
+        jfBox.setAttribute('data-jf', `${jf.cc}|${jf.conf}`);
+        jfBox.innerHTML = `<span class="jf-ic" aria-hidden="true">◎</span>
+          <span class="jf-txt">来自<b>联合分布</b>：<b>${esc(jf.rowLabel)}</b> × <b>${esc(jf.colLabel)}</b>
+            · 共 <b>${hitsN}</b> 条${drift}${clearedTxt}</span>
+          <span class="jf-note">${esc(jf.rowNote)}</span>
+          <button type="button" class="jf-btn" id="jf-back">← 回矩阵</button>
+          <button type="button" class="jf-btn jf-x" id="jf-clear">退出组合筛选</button>`;
+        $('#jf-back').addEventListener('click', () => {
+          state.jointFocus = null;
+          if (typeof switchView === 'function') switchView('crosscheck');
+        });
+        $('#jf-clear').addEventListener('click', () => {
+          state.jointFocus = null;
+          state.filters.cc = 'all';
+          state.filters.conf = 'all';
+          saveUI();
+          renderRegistry();
+        });
+      } else {
+        jfBox.hidden = true;
+        jfBox.removeAttribute('data-jf');
+        jfBox.innerHTML = '';
+      }
+    }
+
     /* 可信度分布条：统计用 basePlatforms()（排除 conf 自身），
        所以点选某一档后仍看得到完整分布；每次重绘按 state 重刷高亮。 */
     const confBox = $('#conf-dist');
@@ -359,6 +405,7 @@
       confBox.querySelectorAll('[data-conf]').forEach(b => {
         b.addEventListener('click', () => {
           state.filters.conf = b.dataset.conf;
+          state.jointFocus = null;
           saveUI();
           renderRegistry();
         });
@@ -418,12 +465,13 @@
 
     $('#platform-grid').innerHTML = list.map(p => {
       const qt = QUOTA_TYPES[p.quotaType];
+      const hit = !!(hitSet && hitSet.has(p.id));
       const flags = [
         p.needsCard ? '' : `<span class="ital" title="无需信用卡">免卡</span>`,
         p.confidence === 'disputed' ? `<span class="ital" title="口径存疑" style="background:var(--amber-soft);color:var(--amber)">存疑</span>` : '',
         typeof ccBadgeFor === 'function' ? ccBadgeFor(p.id) : ''
       ].join('');
-      return `<div class="pcard" data-id="${p.id}" data-conf="${esc(p.confidence)}">
+      return `<div class="pcard${hit ? ' jf-hit' : ''}" data-id="${p.id}" data-conf="${esc(p.confidence)}"${hit ? ' data-jf-hit="1"' : ''}>
         <div class="pcard-top">
           <div style="min-width:0">
             <div class="pcard-name">${esc(p.name)}</div>
@@ -1096,6 +1144,7 @@
       searchEl.value = state.search;
       searchEl.addEventListener('input', e => {
         state.search = e.target.value;
+        state.jointFocus = null;      /* 自己搜了就别再挂着矩阵选中态 */
         if (state.view !== 'registry') switchView('registry');
         else { renderRegistry(); saveUI(); }
       });

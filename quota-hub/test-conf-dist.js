@@ -261,5 +261,141 @@ ok('角标也给了窄屏替身，避免表头挤成竖排单字', () => {
   assert(/class="cj-corner"><span class="cj-hl">交叉校验 ↓ \/ 可信度 →<\/span><span class="cj-hs">/.test(jh));
 });
 
+/* ============================================================
+   点格子 → 平台库：命中集合、组合文案、筛选落地
+
+   最容易出的事故是「格子写 10 条、结果只有 3 条」——统计口径和筛选
+   口径各写一套，就会在最需要信任的地方对不上账。这里逐格核对。
+   ============================================================ */
+const H = {};
+new Function('exports', ['data.js', 'crosscheck.js', 'confidence.js']
+  .map(f => fs.readFileSync(path.join(__dirname, 'assets', f), 'utf8')).join('\n') +
+  '\n;Object.assign(exports,{confJoint,confJointHits,confJointCombo,ccVerdictOf});')(H);
+
+ok('confJointCombo：5 × 3 组合都能还原成可读文案', () => {
+  C.CONF_CC_ROWS.forEach(r => C.CONF_META.forEach(m => {
+    const c = H.confJointCombo(r.cc, m.key);
+    assert(c, r.cc + '|' + m.key + ' 取不到文案');
+    eq(c.cc, r.cc);
+    eq(c.conf, m.key);
+    eq(c.rowLabel, r.label);
+    eq(c.colLabel, m.label);
+    assert(c.rowNote && c.colShort, '文案缺备注或短标签');
+  }));
+});
+
+ok('confJointCombo：非法组合返回 null（不生成半截面包屑）', () => {
+  eq(H.confJointCombo('bogus', 'verified'), null);
+  eq(H.confJointCombo('conflict', 'bogus'), null);
+  eq(H.confJointCombo(null, null), null);
+  eq(H.confJointCombo('gap', 'verified'), null);      /* gap 已并入 pending，非矩阵行 */
+  eq(H.confJointCombo('pending', undefined), null);
+});
+
+ok('每个格子的条数 = 平台库命中条数（15 格逐一核对）', () => {
+  const j = H.confJoint(d.PLATFORMS);
+  j.rows.forEach(r => j.cols.forEach((c, i) => {
+    const hits = H.confJointHits(d.PLATFORMS, r.cc, c.key);
+    eq(hits.length, r.cells[i], r.label + ' × ' + c.label);
+  }));
+});
+
+ok('命中集合互斥、加总 = 矩阵总数，无重复无遗漏', () => {
+  const j = H.confJoint(d.PLATFORMS);
+  const seen = new Map();
+  let sum = 0;
+  j.rows.forEach(r => j.cols.forEach(c => {
+    H.confJointHits(d.PLATFORMS, r.cc, c.key).forEach(p => {
+      assert(!seen.has(p.id), p.id + ' 被两个格子同时命中');
+      seen.set(p.id, 1);
+      sum++;
+    });
+  }));
+  eq(sum, j.total - j.other);
+  eq(seen.size, 48);
+});
+
+ok('命中的条目确实落在该格（判定与可信度都对得上）', () => {
+  const j = H.confJoint(d.PLATFORMS);
+  j.rows.forEach(r => j.cols.forEach(c => {
+    H.confJointHits(d.PLATFORMS, r.cc, c.key).forEach(p => {
+      eq(p.confidence, c.key, p.id + ' 可信度不匹配');
+      const v = H.ccVerdictOf(p.id);
+      const key = (v === 'gap' || v === 'unknown') ? 'pending' : v;
+      eq(key, r.cc, p.id + ' 判定不匹配');
+    });
+  }));
+});
+
+ok('confJointHits：脏输入不抛错，null 条目被剔除', () => {
+  eq(H.confJointHits(null, 'conflict', 'verified').length, 0);
+  eq(H.confJointHits([null, undefined], 'conflict', 'verified').length, 0);
+  eq(H.confJointHits([{ id: 'not-in-crosscheck', confidence: 'verified' }], 'none', 'verified').length, 1);
+});
+
+/* ---------- 点格子这个动作本身 ---------- */
+function focusSandbox(search) {
+  const st = {
+    search: search || '',
+    filters: { region: 'all', cat: 'all', qtype: 'all', cc: 'all', conf: 'all' }
+  };
+  const calls = { save: 0, view: null };
+  const F = {};
+  new Function('state', 'saveUI', 'switchView', 'exports',
+    ['crosscheck.js', 'confidence.js']
+      .map(f => fs.readFileSync(path.join(__dirname, 'assets', f), 'utf8')).join('\n') +
+    '\n;Object.assign(exports,{confFocusCross});')(
+      st, () => { calls.save++; }, v => { calls.view = v; }, F);
+  return { st, calls, focus: F.confFocusCross };
+}
+
+ok('点格子：两个筛选落地、跳到平台库、记下组合', () => {
+  const s = focusSandbox();
+  s.focus('none', 'verified');
+  eq(s.st.filters.cc, 'none');
+  eq(s.st.filters.conf, 'verified');
+  eq(s.st.jointFocus.cc, 'none');
+  eq(s.st.jointFocus.conf, 'verified');
+  eq(s.calls.view, 'registry');
+  eq(s.calls.save, 1);
+});
+
+ok('点格子会清掉其它维度，避免条数对不上账', () => {
+  const s = focusSandbox('kimi');
+  s.st.filters.region = 'cn';
+  s.st.filters.cat = 'api';
+  s.st.filters.qtype = 'daily';
+  s.focus('agree', 'reported');
+  eq(s.st.filters.region, 'all');
+  eq(s.st.filters.cat, 'all');
+  eq(s.st.filters.qtype, 'all');
+  eq(s.st.search, '');
+  eq(s.st.jointFocus.cleared.join('/'), '区域/类型/额度形态/搜索');
+});
+
+ok('其它条件本来就是「全部」时不谎报重置', () => {
+  const s = focusSandbox();
+  s.focus('solo', 'reported');
+  eq(s.st.jointFocus.cleared.length, 0);
+});
+
+ok('残缺入参回落到 all，不把 undefined 写进筛选', () => {
+  const s = focusSandbox();
+  s.focus();
+  eq(s.st.filters.cc, 'all');
+  eq(s.st.filters.conf, 'all');
+  eq(s.st.jointFocus.cc, 'all');
+  eq(s.st.jointFocus.conf, 'all');
+});
+
+ok('第二次点格子覆盖上一次的组合，不叠加', () => {
+  const s = focusSandbox();
+  s.focus('none', 'verified');
+  s.focus('conflict', 'disputed');
+  eq(s.st.jointFocus.cc, 'conflict');
+  eq(s.st.jointFocus.conf, 'disputed');
+  eq(s.st.jointFocus.cleared.length, 0);
+});
+
 console.log(`\n可信度分布单测：${pass} 通过 / ${fail} 失败`);
 process.exit(fail ? 1 : 0);

@@ -744,6 +744,54 @@ tr.cc-focus { background: var(--blue-soft) !important; }
   .cd-clear { margin-left: 0; }
 }
 
+/* --- 从联合分布矩阵点格子跳过来：组合面包屑 + 命中卡片描边 ---
+   光把列表收窄成 N 条不够，得说清「为什么是这 N 条」：面包屑写明
+   判定 × 可信度、条数、被重置掉的其它条件；命中的卡片加一圈描边，
+   滚到长列表中段也知道自己在看哪一组。 */
+.jf-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 12px 0 0; padding: 9px 12px; min-width: 0;
+  background: var(--accent-soft); border: 1px solid rgba(47,95,224,.2);
+  border-left: 3px solid var(--accent); border-radius: var(--r);
+  font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere;
+}
+.jf-bar[hidden] { display: none; }
+.jf-ic { color: var(--accent); font-size: 13px; line-height: 1; flex: 0 0 auto; }
+.jf-txt { min-width: 0; }
+.jf-txt b { color: var(--ink); font-weight: 650; }
+.jf-bar em { font-style: normal; color: var(--ink-3); }
+.jf-note { font-size: 11px; color: var(--ink-3); min-width: 0; }
+.jf-btn {
+  flex: 0 0 auto; padding: 4px 9px; font: inherit; font-size: 11px;
+  color: var(--accent); background: var(--card);
+  border: 1px solid rgba(47,95,224,.28); border-radius: 6px;
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.jf-btn:first-of-type { margin-left: auto; }
+.jf-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.jf-btn.jf-x { color: var(--ink-2); border-color: var(--line); }
+.jf-btn.jf-x:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+.jf-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pcard.jf-hit {
+  border-color: rgba(47,95,224,.5);
+  box-shadow: 0 0 0 2px rgba(47,95,224,.14), var(--shadow);
+  animation: jf-pop .6s ease-out 1;
+}
+.pcard.jf-hit:hover { box-shadow: 0 0 0 2px rgba(47,95,224,.2), var(--shadow-h); }
+@keyframes jf-pop {
+  from { box-shadow: 0 0 0 4px rgba(47,95,224,.4), var(--shadow-h); }
+  to   { box-shadow: 0 0 0 2px rgba(47,95,224,.14), var(--shadow); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pcard.jf-hit { animation: none; }
+}
+@media (max-width: 520px) {
+  .jf-bar { padding: 8px 10px; gap: 5px 8px; }
+  .jf-note { display: none; }          /* 窄屏先让位给组合与按钮 */
+  .jf-btn:first-of-type { margin-left: 0; }
+}
+
 /* --- 接入核验卡片里的外部证据块 --- */
 .vcc {
   margin-top: 9px; padding: 10px 12px; border-radius: 7px;

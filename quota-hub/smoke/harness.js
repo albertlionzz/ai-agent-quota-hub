@@ -491,10 +491,24 @@
 
     var jcell = q('#view-crosscheck [data-jcc="none|verified"]');
     add('「未覆盖 × 核实」格子存在', !!jcell);
+    add('没点格子时平台库不显示组合面包屑',
+      !!q('#joint-focus') && q('#joint-focus').hidden === true,
+      q('#joint-focus') ? String(q('#joint-focus').hidden) : 'missing');
     if (jcell) {
+      /* 先在平台库把「区域」收窄：点格子必须把这类条件清掉，否则会出现
+         「格子写 10 条、结果只剩 3 条」的对不上账。面包屑要如实说明。 */
+      navTo('registry');
+      var rgBtn = q('#filter-bar .fbtn[data-g="region"][data-v="cn"]');
+      if (rgBtn) rgBtn.click();
+      var rcNarrow = q('#result-count');
+      add('先在平台库按区域收窄（准备验证条件重置）',
+        !!rcNarrow && rcNarrow.textContent.indexOf('48 /') !== 0,
+        rcNarrow ? rcNarrow.textContent : 'missing');
+      navTo('crosscheck');
+
       jcell.click();
       var rcAfter = q('#result-count');
-      add('点格子落到平台库 10 条（两个筛选同时生效）',
+      add('点格子落到平台库 10 条（两个筛选同时生效，旧条件被清掉）',
         !!rcAfter && rcAfter.textContent.indexOf('10 /') === 0,
         rcAfter ? rcAfter.textContent : 'missing');
       var onCc = q('#filter-bar .fbtn.on[data-g="cc"]');
@@ -505,8 +519,36 @@
       add('可信度筛选被设成「多源核实」',
         !!onConf && onConf.getAttribute('data-conf') === 'verified',
         onConf ? onConf.getAttribute('data-conf') : 'missing');
-      /* 回到交叉校验：矩阵仍应显示全貌 48，且只有选中那一格高亮 */
-      navTo('crosscheck');
+
+      /* ---------- 组合高亮：面包屑 + 命中卡片描边 ---------- */
+      var jfBar = q('#joint-focus');
+      add('落地页出现组合面包屑',
+        !!jfBar && jfBar.hidden === false && jfBar.getAttribute('data-jf') === 'none|verified',
+        jfBar ? jfBar.getAttribute('data-jf') + ' hidden=' + jfBar.hidden : 'missing');
+      add('面包屑写明「未覆盖 × 多源核实 · 共 10 条」', (function () {
+        if (!jfBar) return false;
+        var t = txt(jfBar);
+        return /未覆盖/.test(t) && /多源核实/.test(t) && /共\s*10\s*条/.test(t);
+      })(), jfBar ? txt(jfBar).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
+      var hits = qa('#platform-grid .pcard.jf-hit');
+      add('命中 10 张卡片全部高亮', hits.length === 10, hits.length);
+      add('高亮卡片数 = 结果卡片数（格子条数对得上账）',
+        hits.length === qa('#platform-grid .pcard').length,
+        hits.length + ' / ' + qa('#platform-grid .pcard').length);
+      add('高亮卡片带 data-jf-hit 标记（供筛选与断言定位）',
+        qa('#platform-grid .pcard[data-jf-hit="1"]').length === 10,
+        qa('#platform-grid .pcard[data-jf-hit="1"]').length);
+      add('面包屑如实说明被重置的其它条件',
+        !!jfBar && /已重置区域/.test(txt(jfBar)),
+        jfBar ? txt(jfBar).replace(/\s+/g, ' ').slice(0, 80) : 'missing');
+
+      /* 回矩阵：走面包屑上的按钮，确认组合态能来回 */
+      var back = q('#jf-back');
+      add('面包屑提供「回矩阵」', !!back);
+      if (back) back.click();
+      var actBack = q('.view.active');
+      add('「回矩阵」回到交叉校验', !!actBack && actBack.id === 'view-crosscheck',
+        actBack ? actBack.id : 'none');
       add('矩阵统计不随自身筛选收缩（仍 48 条）',
         /共\s*48\s*条/.test(txt(q('#view-crosscheck .cc-joint'))),
         txt(q('#view-crosscheck .cc-joint')).replace(/\s+/g, ' ').slice(0, 40));
@@ -514,14 +556,26 @@
         qa('#view-crosscheck .cj-btn.on').length);
       add('对应行也高亮', qa('#view-crosscheck .cj-row-on').length === 1,
         qa('#view-crosscheck .cj-row-on').length);
-      /* 复位：这套组合会污染 s23 的计数断言 */
-      var ccAll = q('#filter-bar .fbtn[data-g="cc"][data-v="all"]');
-      var cdClear = q('.cd-clear');
-      if (ccAll) ccAll.click();
-      if (cdClear) cdClear.click();
+
+      /* 再点一次同一格，然后用「退出组合筛选」整体复位（这套组合会污染 s23 的计数） */
+      var jcell2 = q('#view-crosscheck [data-jcc="none|verified"]');
+      if (jcell2) jcell2.click();
+      var rcAgain = q('#result-count');
+      add('再次点同一格仍落到 10 条', !!rcAgain && rcAgain.textContent.indexOf('10 /') === 0,
+        rcAgain ? rcAgain.textContent : 'missing');
+      var jfClear = q('#jf-clear');
+      add('面包屑提供「退出组合筛选」', !!jfClear);
+      if (jfClear) jfClear.click();
       var rcReset = q('#result-count');
-      add('复位后回到 48 条', !!rcReset && rcReset.textContent.indexOf('48 /') === 0,
+      add('退出组合筛选后回到 48 条', !!rcReset && rcReset.textContent.indexOf('48 /') === 0,
         rcReset ? rcReset.textContent : 'missing');
+      add('退出后面包屑收起', q('#joint-focus').hidden === true);
+      add('退出后卡片不再带高亮', qa('#platform-grid .pcard.jf-hit').length === 0,
+        qa('#platform-grid .pcard.jf-hit').length);
+      var ccNow = q('#filter-bar .fbtn.on[data-g="cc"]');
+      add('退出后交叉校验筛选回到「全部」',
+        !!ccNow && ccNow.getAttribute('data-v') === 'all',
+        ccNow ? ccNow.getAttribute('data-v') : 'missing');
     }
   }
 
