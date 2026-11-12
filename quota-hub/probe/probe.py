@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 UA = 'quota-hub-probe/1 (+https://github.com/albertlionzz/ai-agent-quota-hub)'
-STATUSES = ('ok', 'auth', 'badkey', 'forbidden', 'notfound', 'ratelimited', 'server', 'unreachable', 'error', 'skipped')
+STATUSES = ('ok', 'badbody', 'auth', 'badkey', 'forbidden', 'notfound', 'ratelimited', 'server', 'unreachable', 'error', 'skipped')
 
 # 代理回 502 时代替上游报的连接失败，说明是网络层问题
 # 有些厂商用 403 表达「你没带凭据」（Google、Cerebras 都这样），
@@ -109,6 +109,31 @@ def extract_msg(body):
     return ' '.join(raw.split())
 
 
+def bad_body(ctype, body):
+    """2xx，但返回的不是 API 响应 —— 典型是被 CDN 接管的僵尸网关。
+
+    实测 models.github.ai 对任意路径、任意方法（GET /inference/models、
+    POST /inference/chat/completions）都只回 4 字节 text/plain "OK"。
+    服务已于 2026-07-30 整体退役，但域名还留着。这种回 200 的地址如果判成
+    「可访问」，页面会告诉人「路是通的」，比报错更害人。
+
+    判据刻意保守：只有「小到不可能是被截断的模型列表」且解析不出 JSON 时才判。
+    条数上限 512 字节，是因为超长 /models 列表读到 64KB 就截断了，那种情况
+    解析失败是正常的，不能误报。
+    """
+    if body is None:
+        return False
+    if len(body) > 512:
+        return False
+    if 'json' in str(ctype or '').lower():
+        return False
+    try:
+        json.loads(body.decode('utf-8', 'replace') or '')
+        return False
+    except Exception:
+        return True
+
+
 def build_request(ep, key):
     # probeBase 是给「兼容端点没实现 /models」的平台准备的（商汤就是这种情况）
     url = (ep.get('probeBase') or ep['base']).rstrip('/') + ep['path']
@@ -157,9 +182,11 @@ def probe_one(ep, key=None, timeout=12):
         req = build_request(ep, key)
         with open_url(req, timeout=timeout) as r:
             code = r.status
+            ctype = r.headers.get('Content-Type', '') if getattr(r, 'headers', None) else ''
             body = r.read(65536)
     except urllib.error.HTTPError as e:
         code = e.code
+        ctype = e.headers.get('Content-Type', '') if getattr(e, 'headers', None) else ''
         try:
             body = e.read(65536)
         except Exception:
@@ -180,6 +207,11 @@ def probe_one(ep, key=None, timeout=12):
         n = count_models(body)
         if n is not None:
             out['models'] = n
+        elif bad_body(ctype, body):
+            out['status'] = 'badbody'
+            status = 'badbody'
+            out['detail'] = redact('2xx 但不是 API 响应（%s，%d 字节）：%s'
+                                   % (ctype or '无 content-type', len(body), extract_msg(body)), key)
     else:
         out['detail'] = redact(extract_msg(body), key)
         # 代理和企业网关在连不上上游时常常回 502/503/504，报文里带 connect failed。

@@ -811,14 +811,14 @@ const PIPE_BASE = {
   cerebras: 'https://api.cerebras.ai/v1',
   mistral: 'https://api.mistral.ai/v1',
   'github-models': 'https://models.github.ai/inference',
-  sensenova: 'https://api.sensenova.cn/compatible-mode/v1',
+  sensenova: 'https://token.sensenova.cn/v1',
   moonshot: 'https://api.moonshot.cn/v1',
   minimax: 'https://api.minimaxi.com/v1',
   spark: 'https://spark-api-open.xf-yun.com/v1',
   xai: 'https://api.x.ai/v1',
   openai: 'https://api.openai.com/v1',
   'amd-radeon': 'https://developer.amd.com.cn/radeon/api/v1',
-  together: 'https://api.together.xyz/v1',
+  together: 'https://api.together.ai/v1',
 };
 
 /* ============================================================

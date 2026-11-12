@@ -12,7 +12,8 @@
    ============================================================ */
 
 const PROBE_STATUS = {
-  ok:          { label: '可访问',  cls: 'green', why: '带 key 拿到 200，端点和密钥都对' },
+  ok:          { label: '可访问',  cls: 'green', why: '带 key 拿到 200 且是 API 响应，端点和密钥都对' },
+  badbody:     { label: '非 API',  cls: 'red',   why: '200 但返回的不是 API 响应（如纯文本 OK / HTML）。常见于已退役服务的僵尸网关——地址还在，服务没了' },
   auth:        { label: '需鉴权',  cls: 'slate', why: '端点存在且要求鉴权（401/403）。没配 key 时这是正常结果——路是对的' },
   badkey:      { label: 'key 无效', cls: 'red',   why: '带了 key 仍 401/403，去控制台重新生成' },
   forbidden:   { label: '被拒绝',  cls: 'red',   why: '403：服务器拒绝了请求。多半是地域封锁或 IP 限制，也可能 key 没有该模型权限——换 key 未必有用' },
@@ -25,7 +26,7 @@ const PROBE_STATUS = {
 };
 
 /* 有问题的排前面：探活的意义就是先看坏消息 */
-const PROBE_ORDER = ['notfound', 'badkey', 'forbidden', 'ratelimited', 'server', 'unreachable', 'error', 'auth', 'ok', 'skipped'];
+const PROBE_ORDER = ['badbody', 'notfound', 'badkey', 'forbidden', 'ratelimited', 'server', 'unreachable', 'error', 'auth', 'ok', 'skipped'];
 
 const PROBE_STATE = {
   data: (typeof PROBE_SNAPSHOT !== 'undefined' ? PROBE_SNAPSHOT : null),

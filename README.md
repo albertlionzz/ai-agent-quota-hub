@@ -73,6 +73,7 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 | `badkey` 401/403 | 带了 key 仍被拒 | 去控制台重新生成 key |
 | `forbidden` 403 | 地域封锁 / IP 限制 / 无该模型权限 | 换 key 未必有用，先看原因 |
 | `notfound` 404 | base_url 或路径写错 | **这才是真错误**，跟 key 无关 |
+| `badbody` | 回 200 但不是 API 响应（纯文本 `OK` / HTML） | **僵尸网关**：域名活着、服务没了。见下 |
 | `unreachable` | 网络层到不了（含代理回 502 connect failed） | 看执行环境，不代表平台挂了 |
 | `ratelimited` 429 | 配置没问题，额度或频率到了 | 等重置或降并发 |
 
@@ -82,6 +83,7 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 - **401 不报警**。把「没配 key」当成故障，会让这个看板永远一片红，最后没人看。
 - **403 和 401 分开**。401 是「没出示证件」，403 是「出示了也不让进」，合并会让人白白去换 key。
 - **代理的 502 归到 unreachable**。企业网关连不上上游时常回 502 + `connect failed`，那是网络问题，不是对方服务端挂了。
+- **200 不等于能用**。2026-11-12 复核时发现 `models.github.ai` 对任意路径、任意方法都只回 4 字节 `text/plain` 的 `OK` —— GitHub Models 已于 2026-07-30 整体退役，域名还挂着。旧逻辑把 200 一律判 `ok`，页面于是显示「可访问」，比报错更害人。现在 2xx 但解析不出 JSON、且体积小到不可能是被截断的模型列表时，判 `badbody`（非 API）。判据刻意保守：超长 `/models` 读到 64KB 会截断，那种解析失败不能误报。
 - **执行环境决定结论，而且两个方向都会失真**。首轮实测：本机（境内网络）有 4 家「未连通」（OpenAI / Gemini / xAI / Mistral），而 GitHub 海外 runner 一家都没断路、17 家回 401——所以「未连通」说的是这台机器到不了，不是平台挂了。页面里把执行环境标出来，就是为了让人知道该信哪一半。
 
 想加 key 让探活变成真验证：仓库 Settings → Secrets and variables → Actions，按 `probe/endpoints.json` 里的 `env` 字段建同名 secret（如 `ZHIPUAI_API_KEY`）。没建的会按「无 key」处理，不会报错。
@@ -142,6 +144,23 @@ python quota-hub/probe/probe.py          # 逐个探测 → probe.json
 
 
 
+## 2026-11-12 全量复核（25 家）
+
+接入总表那天起就写着「免费政策变动频繁，超过 1 个月请重新核实」。距 2026-10-20 的口径已经 23 天，这一轮把 25 家的**免费档判定 / 额度数字 / base_url / model id** 逐条对回官方页，并当场实探 24 个端点。结论：**6 家判定有变**，其中 5 家是被推翻的。
+
+| 厂商 | 旧判定 | 新判定 | 依据（官方原文） |
+|---|---|---|---|
+| GitHub Models | 仅试用金 | **无免费（已退役）** | "As of July 30, 2026, GitHub Models has been fully retired." |
+| Cerebras | 有免费档 | **仅试用金** | "Cerebras doesn't currently offer a no-cost tier that renews automatically…" $5 / 30 天 / 须绑卡 |
+| Together AI | 仅试用金 | **无免费** | "Together AI does not currently offer free trials." 首充 $15 |
+| Kimi | 无免费 | **仅代金券** | 官方账号页：完成认证赠 15 元代金券（不含 highspeed），仍需先充值解锁 |
+| 硅基流动 | 仅试用金 | **有免费档** | 价格页：Hunyuan-MT-7B / Xing4.0-29B 对话类标「免费」，bge 系与 Kolors 同 |
+| 百度千帆 | 有免费档 | **口径冲突** | 「ERNIE-Speed 永久免费」vs「17 款预置各 100 万/3 个月」，官方免费额度页正文取不到 |
+
+端点改了两处，都是实测而非转述：Together `api.together.xyz/v1` → `api.together.ai/v1`（官方 quickstart 明写）；商汤 `api.sensenova.cn/compatible-mode/v1` → `token.sensenova.cn/v1`（新网关 `/models` 回 401 JSON；旧 `compatible-mode/v1/models` 回 404 NOT_FOUND，而 compatible-mode 只提供 chat）。另有 8 家只更新数字或 model id（智谱免费清单收窄到 2 个、Kimi K2 系列 12 月底下线、Groq 免费档收窄、魔搭 2000 次/日 + 单模型 200 次/日、AMD 限速四层口径、混元迁 TokenHub、百炼下架清单、DeepSeek 赠金口径），11 家维持原判并附证据。
+
+诚实标注的部分：**xAI 仍标 disputed**——`docs.x.ai` 在本机与海外 runner 都 502，无法取得原文；**LongCat 仍是唯一连官方额度页都打不开的一家**；**Gemini 的逐模型 RPD** 已从公开文档撤下，只能给「以 AI Studio 项目页为准」。
+
 ## 测试
 
 ```bash
@@ -159,7 +178,7 @@ node test-walletio.js    # 备份导入 22 项：坏输入全拒、脏字段清�
 node test-schedule.js    # 重置日程 20 项：分桶、不编造日期、0 点倒计时边界
 node test-onboard.js     # 接入向导 21 项：推荐矩阵 + 生成的脚本过 bash -n 与 PS 解析器
 node test-probe.js       # 探活卡片 22 项：时间表述、状态排序、XSS 转义、短名、file:// 不发请求
-python test-probe.py     # 探活脚本 33 项：分类语义、密钥不泄露、本地假服务器真实往返、环回不走代理
+python test-probe.py     # 探活脚本 34 项：分类语义、非 API 响应判定、密钥不泄露、本地假服务器真实往返、环回不走代理
 python test-sources.py   # 来源时间戳 14 项：离线兜底、字段解析（含上游加粗巡检戳）、单源失败隔离、产物结构
 node test-crosscheck.js  # 双源交叉校验 57 项：立场归一、判定、新鲜度文案、联动、筛选档位、未覆盖分组
 node test-confidence.js  # confidence 门禁 16 项：规则、24 家映射、漂移检出、CLI 退出码

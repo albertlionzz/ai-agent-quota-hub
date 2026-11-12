@@ -2337,3 +2337,11 @@ kbd,
 @media (max-width: 560px) {
   .gw-adapt { font-size: 11px; padding: 10px 11px; }
 }
+
+/* 复核记录卡：顶部一条，说明本轮改了什么。左侧色条而非整块染色，
+   避免在一个以「数据密度」为主的页面里抢走注意力。 */
+.recheck-card { border-left: 3px solid var(--accent); }
+.recheck-card .card-head h2 { color: var(--accent); }
+@media (max-width: 560px) {
+  .recheck-card .card-head p { font-size: 12px; line-height: 1.8; }
+}

@@ -5,7 +5,8 @@
   "total": 24,
   "probed": 24,
   "counts": {
-    "ok": 3,
+    "ok": 2,
+    "badbody": 1,
     "auth": 19,
     "badkey": 0,
     "forbidden": 1,
@@ -169,10 +170,11 @@
       "detail": "Token is invalid."
     },
     "github-models": {
-      "status": "ok",
+      "status": "badbody",
       "http": 200,
       "ms": 25,
       "keyed": true,
+      "detail": "2xx 但不是 API 响应（text/plain，4 字节）：OK —— 服务已于 2026-07-30 退役，域名仍在",
       "at": "2026-11-19T07:34:12Z"
     },
     "together": {

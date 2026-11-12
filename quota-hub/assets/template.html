@@ -476,6 +476,16 @@
 
     <!-- ---------- 接入核验 ---------- -->
     <section class="view" id="view-verify">
+      <div class="card recheck-card">
+        <div class="card-head">
+          <h2>2026-11-12 全量复核：25 家里 6 家结论有变</h2>
+          <p>本轮把 25 家的「额度口径 + 端点 + model id」逐条对着官方页重核了一遍，并当场实探 24 个端点。
+            <b>5 家免费档判定被推翻</b>：GitHub Models（已整体退役）、Cerebras（无永久免费层）、Together（不提供免费试用）、
+            Kimi（有 15 元代金券）、硅基流动（对话类仍有免费模型）；千帆的「Speed 永久免费」因官方页正文取不到，降级为<b>口径冲突</b>。
+            端点侧改了 2 处：Together 换成 <code class="mono">api.together.ai/v1</code>、商汤换成 <code class="mono">token.sensenova.cn/v1</code>（均已实测）。
+            另有 8 家只更新了数字或 model id，11 家维持原判（附证据）。</p>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head">
           <h2>为什么需要这一页</h2>

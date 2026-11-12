@@ -97,7 +97,7 @@ const PLATFORMS = [
     needsCard: false, needsPhone: false,
     tags: ['chat','reasoning','code','batch','agent'],
     confidence: 'reported', source: 'llmperks.com 2026-10-20 快照',
-    url: 'https://api.together.xyz',
+    url: 'https://api.together.ai',
     note: '适合当「旗舰模型备用通道」——主力额度用完时的第二梯队，不要规划为每日产能。'
   },
   {

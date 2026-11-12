@@ -266,5 +266,22 @@ def statuses_cover():
 T('probe.js 的 PROBE_STATUS 覆盖脚本所有状态', statuses_cover)
 
 
+def bad_body_rules():
+    """2xx 但不是 JSON 的判定，以及它的边界。
+    这几条对应一次真实事故：models.github.ai 退役后域名还在，对任意路径都回
+    4 字节 text/plain "OK"，旧逻辑判成 ok，页面显示「可访问」。"""
+    assert probe.bad_body('text/plain', b'OK'), '纯文本 OK 没被判成非 API 响应'
+    assert probe.bad_body('text/html; charset=UTF-8', b'<html><body>Attention Required</body></html>'), '小体积 HTML 没被判'
+    assert not probe.bad_body('application/json', b'{"data":[]}'), 'JSON 被误判'
+    assert not probe.bad_body('text/plain', b'{}'), '能解析的 JSON 被误判'
+    # 超过 512 字节的模型列表读到 64KB 会截断，解析失败属正常，不能误报
+    big = b'{"data":[' + b'{"id":"m"},' * 200 + b']}'
+    assert not probe.bad_body('application/json; charset=utf-8', big), '大体积响应被误判'
+    assert not probe.bad_body('application/json', b''), '空 JSON 响应被误判'
+
+
+T('非 API 响应的判定与边界（僵尸网关）', bad_body_rules)
+
+
 print('\n合计 %d 项，失败 %d 项' % (PASS[0] + FAIL[0], FAIL[0]))
 sys.exit(1 if FAIL[0] else 0)
