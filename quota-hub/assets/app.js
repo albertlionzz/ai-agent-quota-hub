@@ -1149,6 +1149,23 @@
       : `数据距今 ${days} 天，仍在 30 天建议复核周期内。`;
   }
 
+  /* 接入口径是另一条轴：25 家的额度口径 / base_url / model id 会单独复核，
+     日期常常晚于全局基线（额度大表）。不写死常量，直接取 VENDOR_ACCESS 里最新的
+     verifyDate —— 常量会忘更，数据本身不会。 */
+  function renderAccessFreshness() {
+    const wrap = $('#access-foot'), dateEl = $('#access-date'), ageEl = $('#access-age');
+    if (!wrap || !dateEl || !ageEl) return;
+    if (typeof VENDOR_ACCESS === 'undefined' || !VENDOR_ACCESS.length) return;
+    const dates = VENDOR_ACCESS.map(v => v.verifyDate).filter(Boolean).sort();
+    const latest = dates[dates.length - 1];
+    if (!latest || latest <= DATA_DATE) return;   /* 与全局基线同期，不必重复显示 */
+    const n = dates.filter(d => d === latest).length;
+    dateEl.textContent = latest;
+    ageEl.textContent = `${n}/${VENDOR_ACCESS.length} 家`;
+    ageEl.title = `接入总表里 ${n} 家的免费档判定、端点与 model id 已核对至 ${latest}`;
+    wrap.hidden = false;
+  }
+
   /*__USAGE__*/
 
   /*__COOLDOWN__*/
@@ -1183,6 +1200,7 @@
     $('#nav-count-wallet').textContent = Object.keys(state.wallet).length;
     $('#data-date').textContent = DATA_DATE;
     renderFreshness();
+    renderAccessFreshness();
     initPalette();
     initWalletIO();
 

@@ -98,6 +98,13 @@ T('每家都有官方出处与核实日期', () => {
     assert(v.srcName, v.id + ' 缺 srcName');
     assert(/^\d{4}-\d{2}-\d{2}$/.test(v.verifyDate), v.id + ' verifyDate 格式错：' + v.verifyDate);
   });
+  /* 日期不能在未来（按本地日算，别用 toISOString —— UTC runner 会差一天） */
+  const d = new Date();
+  const today = [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  VENDOR_ACCESS.forEach(v => assert(v.verifyDate <= today, v.id + ' verifyDate 在未来：' + v.verifyDate));
+  /* 复核完只改文案不改日期，页脚就会一直报旧基线 —— 这条兜住它 */
+  const latest = VENDOR_ACCESS.map(v => v.verifyDate).sort().pop();
+  assert(latest >= '2026-11-01', '接入总表最新核实日期仍停在 ' + latest + '，复核后应同步 verifyDate');
 });
 
 T('控制台地址合法', () => {
