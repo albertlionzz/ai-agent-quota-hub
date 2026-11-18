@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "fetchedAt": "2026-11-18T07:38:28Z",
+  "fetchedAt": "2026-11-18T20:38:43Z",
   "runner": "github-actions",
   "note": "只复核来源公开的时间戳，不解析额度内容；抓不到时 status=unreachable 并沿用基线。",
   "sources": [
     {
       "id": "freetoken",
       "name": "FreeToken",
-      "checkedAt": "2026-10-22",
+      "checkedAt": "2026-11-18",
       "axis": "额度口径",
       "url": "https://github.com/AIPMAndy/FreeToken/blob/main/data/providers.json",
       "status": "ok",
-      "note": "台账 updated 字段 · 共 16 条 provider"
+      "note": "台账 updated 字段 · 共 18 条 provider"
     },
     {
       "id": "intel",
