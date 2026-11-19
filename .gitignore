@@ -31,3 +31,10 @@ node_modules/
 
 # 本地导出（自检脚本跑出来的结果）
 verify_report.*
+
+# 核验时抓的 API 原始响应 / 页面快照（体积大、可随时重抓，不入库）
+or.json
+sf.json
+orpage.html
+raw-*.json
+*-page.html
