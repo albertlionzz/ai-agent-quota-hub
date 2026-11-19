@@ -33,16 +33,16 @@ ok('筛选档位以「全部」开头且覆盖三档', () => {
 });
 
 /* ---------- 真实数据统计 ---------- */
-ok('48 家真实数据：核实 15 / 单源 21 / 冲突 12，无未分级', () => {
+ok('48 家真实数据：核实 25 / 单源 19 / 冲突 4，无未分级', () => {
   const bd = C.confBreakdown(d.PLATFORMS);
   eq(bd.total, 48);
   eq(bd.unknown, 0);
-  eq(bd.rows.map(r => r.count).join(','), '15,21,12');
+  eq(bd.rows.map(r => r.count).join(','), '25,19,4');
   eq(bd.rows.reduce((s, r) => s + r.count, 0), 48);
 });
 ok('占比保留一位小数且总和约等于 100', () => {
   const bd = C.confBreakdown(d.PLATFORMS);
-  eq(bd.rows.map(r => r.share).join(','), '31.3,43.8,25');
+  eq(bd.rows.map(r => r.share).join(','), '52.1,39.6,8.3');
   const sum = bd.rows.reduce((s, r) => s + r.share, 0);
   assert(Math.abs(sum - 100) < 0.2, '占比总和 ' + sum);
 });
@@ -80,17 +80,23 @@ ok('facet 语义：点选某档后，分布仍按完整结果集统计', () => {
   // 复刻 app.js：base 不看 conf，filtered 才按 conf 过滤
   const base = d.PLATFORMS;
   const filtered = base.filter(p => C.confFilterMatch(p, 'reported'));
-  eq(filtered.length, 21);
+  eq(filtered.length, 19);
   const bd = C.confBreakdown(base);
-  eq(bd.total, 48);                    // 关键：不是 21
-  eq(bd.rows.map(r => r.count).join(','), '15,21,12');
+  eq(bd.total, 48);                    // 关键：不是 19
+  eq(bd.rows.map(r => r.count).join(','), '25,19,4');
 });
 ok('与交叉校验档位联动时分布收敛到筛选后的集合', () => {
   // 模拟「交叉校验 = 冲突」两家的可信度分布
   const subset = d.PLATFORMS.filter(p => ['deepseek', 'moonshot'].includes(p.id));
   const bd = C.confBreakdown(subset);
   eq(bd.total, 2);
-  assert(bd.rows.every(r => r.count === 0 || r.key === 'disputed'), '两家应都标 disputed');
+  /* 两家都被交叉校验判 conflict，但信度可以不同：2026-11-19 复核后
+     deepseek 仍 disputed（官方无赠送表述 vs 外部仍在传），
+     moonshot 有官方定价页支撑 → reported。共同底线是不能标 verified。 */
+  const byId = Object.fromEntries(subset.map(p => [p.id, p.confidence]));
+  eq(byId.deepseek, 'disputed');
+  eq(byId.moonshot, 'reported');
+  assert(bd.rows.every(r => r.count === 0 || r.key !== 'verified'), '冲突条目不得标 verified');
 });
 
 /* ---------- HTML ---------- */
@@ -102,7 +108,7 @@ ok('堆叠条恰好 3 段、图例恰好 4 个按钮（含清除）', () => {
   eq((html.match(/data-conf="/g) || []).length, 7);
 });
 ok('三段宽度写入 style 且与占比一致', () => {
-  assert(html.includes('width:31.3%') && html.includes('width:43.8%') && html.includes('width:25%'));
+  assert(html.includes('width:52.1%') && html.includes('width:39.6%') && html.includes('width:8.3%'));
 });
 ok('默认态只高亮「清除筛选」，不误高亮某一档', () => {
   eq((html.match(/cd-seg [^"]*\bon\b/g) || []).length, 0);
@@ -162,9 +168,9 @@ ok('48 家真实数据：行合计 2 / 3 / 9 / 10 / 24，加总 48', () => {
   eq(j.rows.reduce((a, r) => a + r.total, 0), 48);
 });
 
-ok('列合计 15 / 21 / 12，与独立算出的可信度分布一致', () => {
+ok('列合计 25 / 19 / 4，与独立算出的可信度分布一致', () => {
   const j = X.confJoint(d.PLATFORMS);
-  eq(j.colTotals.join(','), '15,21,12');
+  eq(j.colTotals.join(','), '25,19,4');
   const bd = C.confBreakdown(d.PLATFORMS);
   eq(j.colTotals.join(','), bd.rows.map(r => r.count).join(','));
 });
@@ -177,25 +183,25 @@ ok('每个格子的横竖加总都闭合（无丢条、无重复计）', () => {
   });
 });
 
-ok('实质结论：口径冲突全部落在「冲突」可信度上（不再有「冲突却已核实」）', () => {
+ok('实质结论：口径冲突不允许标「已核实」', () => {
   const j = X.confJoint(d.PLATFORMS);
   const row = j.rows.find(r => r.key === 'conflict');
-  eq(row.cells[2], 2);                  // disputed
+  eq(row.cells[2], 1);                  // disputed
   eq(row.cells[0], 0);                  // verified
-  eq(row.cells[1], 0);                  // reported
+  eq(row.cells[1], 1);                  // reported
 });
 
 ok('实质结论：仅本项目覆盖以单源为主，不能当硬事实', () => {
   const j = X.confJoint(d.PLATFORMS);
   const row = j.rows.find(r => r.key === 'solo');
-  eq(row.cells[1], 7);                  // reported 最多
-  assert(row.cells[1] > row.cells[0], '单源应多于核实');
+  eq(row.cells[1], 5);                  // reported
+  assert(row.cells[1] >= row.cells[0], '单源不应少于核实（外部源未覆盖不等于我们没读官方页）');
 });
 
 ok('未覆盖行仍有大量已核实条目：说明是轴的边界而非数据质量差', () => {
   const j = X.confJoint(d.PLATFORMS);
   const row = j.rows.find(r => r.key === 'none');
-  eq(row.cells[0], 10);
+  eq(row.cells[0], 15);
   assert(row.cells[0] > 0);
 });
 

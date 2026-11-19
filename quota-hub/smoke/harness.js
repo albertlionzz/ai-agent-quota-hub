@@ -508,8 +508,8 @@
 
       jcell.click();
       var rcAfter = q('#result-count');
-      add('点格子落到平台库 10 条（两个筛选同时生效，旧条件被清掉）',
-        !!rcAfter && rcAfter.textContent.indexOf('10 /') === 0,
+      add('点格子落到平台库 15 条（两个筛选同时生效，旧条件被清掉）',
+        !!rcAfter && rcAfter.textContent.indexOf('15 /') === 0,
         rcAfter ? rcAfter.textContent : 'missing');
       var onCc = q('#filter-bar .fbtn.on[data-g="cc"]');
       var onConf = q('.cd-key.on[data-conf]');
@@ -528,15 +528,15 @@
       add('面包屑写明「未覆盖 × 多源核实 · 共 10 条」', (function () {
         if (!jfBar) return false;
         var t = txt(jfBar);
-        return /未覆盖/.test(t) && /多源核实/.test(t) && /共\s*10\s*条/.test(t);
+        return /未覆盖/.test(t) && /多源核实/.test(t) && /共\s*15\s*条/.test(t);
       })(), jfBar ? txt(jfBar).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
       var hits = qa('#platform-grid .pcard.jf-hit');
-      add('命中 10 张卡片全部高亮', hits.length === 10, hits.length);
+      add('命中 15 张卡片全部高亮', hits.length === 15, hits.length);
       add('高亮卡片数 = 结果卡片数（格子条数对得上账）',
         hits.length === qa('#platform-grid .pcard').length,
         hits.length + ' / ' + qa('#platform-grid .pcard').length);
       add('高亮卡片带 data-jf-hit 标记（供筛选与断言定位）',
-        qa('#platform-grid .pcard[data-jf-hit="1"]').length === 10,
+        qa('#platform-grid .pcard[data-jf-hit="1"]').length === 15,
         qa('#platform-grid .pcard[data-jf-hit="1"]').length);
       add('面包屑如实说明被重置的其它条件',
         !!jfBar && /已重置区域/.test(txt(jfBar)),
@@ -572,7 +572,7 @@
       var jcell2 = q('#view-crosscheck [data-jcc="none|verified"]');
       if (jcell2) jcell2.click();
       var rcAgain = q('#result-count');
-      add('再次点同一格仍落到 10 条', !!rcAgain && rcAgain.textContent.indexOf('10 /') === 0,
+      add('再次点同一格仍落到 10 条', !!rcAgain && rcAgain.textContent.indexOf('15 /') === 0,
         rcAgain ? rcAgain.textContent : 'missing');
       var jfClear = q('#jf-clear');
       add('面包屑提供「退出组合筛选」', !!jfClear);
@@ -666,23 +666,23 @@
     add('堆叠条 3 段 / 图例 4 键（含清除）', segs.length === 3 && keys.length === 4,
       segs.length + '/' + keys.length);
     var counts = segs.map(function (b) { return num(txt(b)); });
-    add('三段数字 15 / 21 / 12，加总 48',
-      counts.join(',') === '15,21,12' && counts.reduce(function (a, b) { return a + b; }, 0) === 48,
+    add('三段数字 25 / 19 / 4，加总 48',
+      counts.join(',') === '25,19,4' && counts.reduce(function (a, b) { return a + b; }, 0) === 48,
       counts.join(','));
     add('默认不高亮任何档位，只高亮「清除筛选」',
       qa('#conf-dist .cd-seg.on', view).length === 0 && !!q('#conf-dist .cd-clear.on', view));
 
     var reported = q('#conf-dist .cd-key[data-conf="reported"]', view);
     if (reported) reported.click();
-    add('点「单源报道」筛出 21 家', num(txt(q('#result-count'))) === 21, txt(q('#result-count')));
+    add('点「单源报道」筛出 19 家', num(txt(q('#result-count'))) === 19, txt(q('#result-count')));
     var cards = qa('#platform-grid .pcard', view);
     add('筛出的卡片 data-conf 全为 reported',
-      cards.length === 21 && cards.every(function (c) { return c.getAttribute('data-conf') === 'reported'; }),
+      cards.length === 19 && cards.every(function (c) { return c.getAttribute('data-conf') === 'reported'; }),
       cards.length);
     var segs2 = qa('#conf-dist .cd-seg', view);
     add('facet：点选后分布仍按 48 条全貌统计',
       /条件的\s*48\s*条/.test(txt(q('#conf-dist .cd-head', view))) &&
-      segs2.map(function (b) { return num(txt(b)); }).join(',') === '15,21,12',
+      segs2.map(function (b) { return num(txt(b)); }).join(',') === '25,19,4',
       txt(q('#conf-dist .cd-head', view)));
     add('选中档在段与图例上各高亮一次',
       qa('#conf-dist .cd-seg.on', view).length === 1 &&
@@ -700,9 +700,14 @@
       txt(q('#conf-dist .cd-head', view)));
     var clr = q('#conf-dist .cd-clear', view);
     if (clr) clr.click();
-    add('两家冲突平台全为「口径冲突」档',
-      num(txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view))) === 2,
-      txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view)));
+    /* 冲突两家：deepseek 仍 disputed，moonshot 复核后有官方定价页 → reported。
+       共同底线是不能标 verified，所以断言「disputed + reported = 2 且 verified = 0」。 */
+    add('两家冲突平台都不标「多源核实」',
+      num(txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view))) +
+      num(txt(q('#conf-dist .cd-seg[data-conf="reported"]', view))) === 2 &&
+      num(txt(q('#conf-dist .cd-seg[data-conf="verified"]', view))) === 0,
+      [num(txt(q('#conf-dist .cd-seg[data-conf="disputed"]', view))),
+       num(txt(q('#conf-dist .cd-seg[data-conf="reported"]', view)))].join('+'));
     var ccAll = q('#filter-bar .fbtn[data-g="cc"][data-v="all"]', view);
     if (ccAll) ccAll.click();
     add('复位后回到 48 个结果', num(txt(q('#result-count'))) === 48, txt(q('#result-count')));
@@ -718,8 +723,8 @@
   function s26() {
     var view = q('.view.active');
     add('深链还原到平台库', !!view && view.id === 'view-registry', view ? view.id : 'none');
-    add('深链还原组合条数（仅本项目 × 单源 = 7 条）',
-      num(txt(q('#result-count'))) === 7, txt(q('#result-count')));
+    add('深链还原组合条数（仅本项目 × 单源 = 5 条）',
+      num(txt(q('#result-count'))) === 5, txt(q('#result-count')));
     var bar = q('#joint-focus');
     add('深链还原面包屑组合',
       !!bar && bar.hidden === false && bar.getAttribute('data-jf') === 'solo|reported',
@@ -728,7 +733,7 @@
       !!bar && /仅本项目/.test(txt(bar)) && /单源报道/.test(txt(bar)),
       bar ? txt(bar).replace(/\s+/g, ' ').slice(0, 60) : 'missing');
     add('深链后命中卡片全部高亮',
-      qa('#platform-grid .pcard[data-jf-hit="1"]').length === 7,
+      qa('#platform-grid .pcard[data-jf-hit="1"]').length === 5,
       qa('#platform-grid .pcard[data-jf-hit="1"]').length);
     var onCc = q('#filter-bar .fbtn.on[data-g="cc"]');
     var onCf = q('.cd-key.on[data-conf]');
@@ -742,7 +747,7 @@
   function s27() {
     var bar = q('#joint-focus');
     add('坏链接不挂面包屑（退化成普通平台库）', !!bar && bar.hidden === true);
-    add('坏链接不改动用户已有筛选（不静默重置）', num(txt(q('#result-count'))) === 7,
+    add('坏链接不改动用户已有筛选（不静默重置）', num(txt(q('#result-count'))) === 5,
       txt(q('#result-count')));
     add('坏链接不把地址栏改坏（保留原 hash）',
       location.hash === '#registry/jf=bogus.nope', location.hash);

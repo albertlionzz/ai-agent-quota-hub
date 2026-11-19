@@ -1139,7 +1139,8 @@
   function renderFreshness() {
     const el = $('#data-age');
     if (!el) return;
-    const days = Math.round((new Date() - new Date(DATA_DATE + 'T00:00:00')) / 86400000);
+    /* 必须向下取整：用 round 时「今天」在下午就会显示成「1 天前」 */
+    const days = Math.floor((new Date() - new Date(DATA_DATE + 'T00:00:00')) / 86400000);
     if (!isFinite(days) || days < 0) { el.textContent = ''; return; }
     const stale = days > 30;
     el.textContent = days === 0 ? '（今天）' : `（${days} 天前）`;

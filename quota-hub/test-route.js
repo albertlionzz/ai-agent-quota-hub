@@ -124,12 +124,14 @@ check(!orderBad, '可再生额度优先于一次性礼包');
 
 console.log('\n=== 8. 请求次数硬顶必须生效（RPD 约束）===');
 {
-  const gem = PLATFORMS.find(p => p.id === 'gemini');
+  /* 用合成夹具而非真实数据：Gemini 的 RPD 官方已不再公布，
+     拿真实条目做夹具会把一个已撤回的数字重新钉进测试。 */
+  const gem = { id: 'gemini-fixture', freeTokensPerDay: 1200000, reqPerDay: 250 };
   const perReq = 3000 + 800;
   const { cap, maxReq, basis } = dailyCapacity(gem, 3000, 800);
   console.log(`  Gemini: cap=${fmt(cap)} maxReq=${maxReq} basis=${basis}`);
-  check(maxReq === 250, `Gemini 的 RPD 硬顶被识别为 250（实际 ${maxReq}）`);
-  check(cap === 250 * perReq, 'Gemini 的 cap 受 RPD 约束而非 token 额度（120万）');
+  check(maxReq === 250, `RPD 硬顶被识别为 250（实际 ${maxReq}）`);
+  check(cap === 250 * perReq, 'cap 受 RPD 约束而非 token 额度（120 万）');
   check(cap < gem.freeTokensPerDay, 'cap 小于原始 token 额度 → 说明次数确实成了瓶颈');
 }
 {

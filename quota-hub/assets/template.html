@@ -479,12 +479,14 @@
     <section class="view" id="view-verify">
       <div class="card recheck-card">
         <div class="card-head">
-          <h2>2026-11-12 全量复核：25 家里 6 家结论有变</h2>
-          <p>本轮把 25 家的「额度口径 + 端点 + model id」逐条对着官方页重核了一遍，并当场实探 24 个端点。
-            <b>5 家免费档判定被推翻</b>：GitHub Models（已整体退役）、Cerebras（无永久免费层）、Together（不提供免费试用）、
-            Kimi（有 15 元代金券）、硅基流动（对话类仍有免费模型）；千帆的「Speed 永久免费」因官方页正文取不到，降级为<b>口径冲突</b>。
-            端点侧改了 2 处：Together 换成 <code class="mono">api.together.ai/v1</code>、商汤换成 <code class="mono">token.sensenova.cn/v1</code>（均已实测）。
-            另有 8 家只更新了数字或 model id，11 家维持原判（附证据）。</p>
+          <h2>2026-11-19 全量复核：免费档判定 7 家翻转，工具侧 6 家有重大变更</h2>
+          <p>距上轮（11-12）7 天，这一轮把 <b>48 个平台</b>分 7 类重核——不只 API，连编程助手、Agent 平台、图像 / 视频工具一起过。
+            变化最集中的是「免费档到底还有没有」：<b>OpenAI / xAI / DeepSeek</b> 三家从「存疑 / 礼包」定论为
+            <b>无免费档</b>（$5 是最低充值、$25 是 2024-12 的旧活动、DeepSeek 新户赠送已停），Mistral 的 Experiment 免费档在官方页已找不到依据。
+            国产侧：千帆的「ERNIE-Speed 永久免费」随模型退役失效，腾讯混元整站迁到 TokenHub（端点与 model id 都换），
+            魔搭从「有免费档」降为「单模型 200 次/日」。
+            工具侧同期变化更大：通义灵码已改名 <b>Qoder CN</b> 并改 Credits 制、Windsurf 更名 <b>Devin Desktop</b>、
+            Cursor 改由 <b>X Subscription</b> 售卖、Antigravity 于 11-18 把第三方模型移出免费档。</p>
         </div>
       </div>
       <div class="card">

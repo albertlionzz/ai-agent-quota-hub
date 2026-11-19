@@ -45,10 +45,12 @@ ok('真实数据当前零漂移（moonshot 已由 verified 改 disputed）', () 
   eq(drifts.length, 0, drifts.map(d => d.id + ':' + d.confidence).join(','));
   eq(C.report(rows).driftCount, 0);
 });
-ok('两处 conflict 都标 disputed', () => {
+ok('两处 conflict 都不得标 verified', () => {
   const cs = rows.filter(r => r.verdict === 'conflict');
   eq(cs.length, 2);
-  cs.forEach(r => eq(r.confidence, 'disputed', r.id));
+  /* 门禁只管一条：冲突不能标 verified。是 disputed 还是 reported 取决于
+     我们自己的核实深度——2026-11-19 复核后 moonshot 已有官方定价页支撑，降为 reported。 */
+  cs.forEach(r => assert(r.confidence !== 'verified', r.id + ' 冲突却标 verified'));
 });
 
 /* ---------- 规则表 ---------- */
